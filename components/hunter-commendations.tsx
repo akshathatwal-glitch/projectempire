@@ -30,10 +30,6 @@ export type Commendation = {
     threatLevel?: string;
 };
 
-// jagged "torn paper" bottom edge for the active card
-const TORN_EDGE =
-    "polygon(0% 0%, 100% 0%, 100% 92%, 95% 88%, 91% 95%, 86% 89%, 82% 96%, 77% 90%, 73% 97%, 68% 91%, 64% 96%, 59% 89%, 55% 95%, 50% 90%, 46% 97%, 41% 91%, 37% 95%, 32% 89%, 28% 96%, 23% 90%, 19% 97%, 14% 91%, 10% 95%, 5% 89%, 0% 93%)";
-
 // deterministic "random" tilt so cards don't jitter on every re-render
 function useTilts(count: number) {
     return useMemo(
@@ -138,20 +134,11 @@ export function HunterCommendations({
                                     transition={{ duration: 0.45, ease: "easeInOut" }}
                                     className="absolute inset-0 flex origin-bottom items-center justify-center overflow-hidden rounded-sm border border-white/10 bg-[#0a0a0a]"
                                     style={{
-                                        clipPath: cardIsActive ? TORN_EDGE : undefined,
                                         boxShadow: cardIsActive
                                             ? "0 30px 60px -25px rgba(216,15,15,0.45), inset 0 0 0 1px rgba(255,59,48,0.25)"
                                             : "none",
                                     }}
                                 >
-                                    {/* red backing peeking through the torn edge */}
-                                    {cardIsActive && (
-                                        <div
-                                            className="absolute inset-0 -z-10 translate-y-2 bg-gradient-to-b from-[#3a0505] via-[#1a0303] to-[#0a0a0a]"
-                                            aria-hidden
-                                        />
-                                    )}
-
                                     {/* scanline sweep */}
                                     {cardIsActive && (
                                         <div

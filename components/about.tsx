@@ -197,7 +197,7 @@ export default function About() {
         }
 
         .about {
-          padding: 64px 28px 96px;
+          padding: 64px 28px 36px;
           max-width: 1100px;
           margin: 0 auto;
         }
