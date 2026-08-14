@@ -5,22 +5,56 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+::-webkit-scrollbar {
+  width: 0.0rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+#home {
+  background: url("/darth.png");
+  background-size: cover;
+  background-position: center;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@font-face {
+  font-family: "Impact";
+  src: url("/impact/impacted.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Beni";
+  src: url("/BENI/BeniBold.woff2") format("woff2");
+}
+
+#heading {
+  font-family: "Impact", sans-serif;
+  letter-spacing: 0.05em;
+  font-weight: bold;
+  font-size: 6rem;
+  width: 45rem;
+  margin-top: 20rem;
+  margin-left: 35rem;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.text-spec {
+  
+  color: transparent;
+  -webkit-text-stroke: 2px white;
+ 
+}
+
+#subheading {
+  font-family: "Beni", sans-serif;
+  letter-spacing: 0.05em;
+  font-weight: 900;
+  font-size: 3.5rem;
+  position: absolute;
+  color: white;
+  text-transform: uppercase;
+  transform: rotate(90deg);
+  width: 15rem;
+  top: 15rem;
+  left: 10rem;
+  line-height: 0.9;
 }
