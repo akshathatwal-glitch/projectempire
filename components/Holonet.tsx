@@ -30,13 +30,20 @@ const THREAT_META = [
     { id: "URGENT", label: "URGENT", color: "#ffb020" },
     { id: "OMEGA", label: "OMEGA", color: "#ff3b30" },
 ];
-const THREAT_RANK = { STANDARD: 0, URGENT: 1, OMEGA: 2 };
-const threatColor = (id) => THREAT_META.find((t) => t.id === id)?.color ?? "#8a8a8a";
+const THREAT_RANK: Record<string, number> = { STANDARD: 0, URGENT: 1, OMEGA: 2 };
+const threatColor = (id: string) => THREAT_META.find((t) => t.id === id)?.color ?? "#8a8a8a";
 
-const STATUS_COLOR = {
+const STATUS_COLOR: Record<string, string> = {
     "ACTIVE PURSUIT": "#ff3b30",
     "CONFIRMED CAPTURE": "#3ddc84",
     "COLD TRAIL": "#8a8a8a",
+};
+
+// Drives the big two-tone headline in the dossier panel, e.g. "KAEL-7 IS ACTIVE"
+const STATUS_HEADLINE: Record<string, string> = {
+    "ACTIVE PURSUIT": "IS ACTIVE",
+    "CONFIRMED CAPTURE": "IS CAPTURED",
+    "COLD TRAIL": "HAS GONE DARK",
 };
 
 const SIGHTINGS = [
@@ -78,11 +85,14 @@ const TERMINAL_NOISE = [
 
 const CX = 280;
 const CY = 280;
-const toXY = (r, angleDeg) => {
+const toXY = (r: number, angleDeg: number) => {
     const rad = (angleDeg * Math.PI) / 180;
     return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) };
 };
-const ringRadius = (sector) => RING_ORDER.find((s) => s.id === sector)?.r ?? 0;
+const ringRadius = (sector: string) => RING_ORDER.find((s) => s.id === sector)?.r ?? 0;
+
+// "SIGNAL — DESIGNATION KAEL-7" -> "KAEL-7"
+const codenameOf = (designation: string) => designation.split(" ").pop();
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
@@ -90,13 +100,14 @@ const ringRadius = (sector) => RING_ORDER.find((s) => s.id === sector)?.r ?? 0;
 
 export default function HolonetMap() {
     const [sightings, setSightings] = useState(SIGHTINGS);
-    const [selectedSector, setSelectedSector] = useState(null);
-    const [selectedId, setSelectedId] = useState(null);
-    const [hoveredId, setHoveredId] = useState(null);
+    const [selectedSector, setSelectedSector] = useState<string | null>(null);
+    const [selectedId, setSelectedId] = useState<string | null>(SIGHTINGS[0]?.id ?? null);
+    const [hoveredId, setHoveredId] = useState<string | null>(null);
     const [scanning, setScanning] = useState(false);
-    const [scanLines, setScanLines] = useState([]);
-    const [highlightId, setHighlightId] = useState(null);
-    const scanIntervalRef = useRef(null);
+    const [scanLines, setScanLines] = useState<string[]>([]);
+    const [highlightId, setHighlightId] = useState<string | null>(null);
+    const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const radarRef = useRef<HTMLDivElement | null>(null);
 
     const sectorStats = useMemo(
         () =>
@@ -115,23 +126,23 @@ export default function HolonetMap() {
         ? sightings.filter((s) => s.sector === selectedSector)
         : sightings;
 
-    const board = useMemo(
-        () =>
-            [...THREAT_META].reverse().map((meta) => ({
-                meta,
-                items: filtered.filter((s) => s.threat === meta.id),
-            })),
-        [filtered]
-    );
-
     const activeInfo = sightings.find((s) => s.id === (hoveredId || selectedId)) || null;
 
-    function toggleSector(id) {
-        setSelectedSector((prev) => (prev === id ? null : id));
+    // What the dossier panel shows: hovered/selected contact, falling back to the
+    // first item in the current (possibly sector-filtered) list.
+    const panelItem = filtered.find((s) => s.id === (hoveredId || selectedId)) || filtered[0] || null;
+
+    function toggleSector(id: string) {
+        setSelectedSector((prev: string | null) => (prev === id ? null : id));
     }
 
-    function selectSighting(id) {
-        setSelectedId((prev) => (prev === id ? null : id));
+    function selectSighting(id: string) {
+        setSelectedId((prev: string | null) => (prev === id ? null : id));
+    }
+
+    function trackOnRadar(id: string) {
+        setSelectedId(id);
+        radarRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
     function handleScan() {
@@ -195,6 +206,12 @@ export default function HolonetMap() {
         }
         .hn-blip-pulse { animation: hn-blip-pulse 1.8s ease-out infinite; transform-box: fill-box; transform-origin: center; }
 
+        @keyframes hn-node-pulse {
+          0% { transform: scale(1); opacity: 0.8; }
+          100% { transform: scale(2.6); opacity: 0; }
+        }
+        .hn-node-pulse { animation: hn-node-pulse 1.8s ease-out infinite; }
+
         @keyframes hn-sweep-rotate {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
@@ -237,9 +254,15 @@ export default function HolonetMap() {
         }
         .hn-cursor-blink { animation: hn-cursor-blink 0.9s step-end infinite; }
 
+        @keyframes hn-panel-in {
+          0% { opacity: 0; transform: translateY(6px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .hn-panel-in { animation: hn-panel-in 0.35s ease-out; }
+
         @media (prefers-reduced-motion: reduce) {
-          .hn-ring, .hn-blip-pulse, .hn-sweep, .hn-status-dot,
-          .hn-spin-fast, .hn-scan-progress, .hn-scanline-move, .hn-cursor-blink { animation: none; }
+          .hn-ring, .hn-blip-pulse, .hn-sweep, .hn-status-dot, .hn-node-pulse,
+          .hn-spin-fast, .hn-scan-progress, .hn-scanline-move, .hn-cursor-blink, .hn-panel-in { animation: none; }
         }
       `}</style>
 
@@ -251,7 +274,7 @@ export default function HolonetMap() {
             </div>
 
             {/* ---------------- Red console panel ---------------- */}
-            <div className="mx-auto max-w-6xl px-6 pb-10 sm:px-10">
+            <div ref={radarRef} className="mx-auto max-w-6xl px-6 pb-10 sm:px-10">
                 <div className="relative overflow-hidden rounded-sm border border-white/15 bg-[#b5130e] [background-image:radial-gradient(ellipse_90%_70%_at_25%_0%,rgba(255,255,255,0.14),transparent_60%)]">
                     <div className="flex items-center justify-between border-b border-white/15 px-6 py-4">
                         <div className="flex items-center gap-4">
@@ -432,7 +455,7 @@ export default function HolonetMap() {
                 </div>
 
                 {/* sector filter chips */}
-                <div className="mb-6 flex flex-wrap gap-2">
+                <div className="mb-8 flex flex-wrap gap-2">
                     <button
                         type="button"
                         onClick={() => setSelectedSector(null)}
@@ -467,94 +490,162 @@ export default function HolonetMap() {
                     })}
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    {board.map(({ meta, items }) => (
-                        <div
-                            key={meta.id}
-                            className="flex flex-col rounded-sm border border-white/10 bg-[#0a0a0a]"
-                            style={
-                                meta.id === "OMEGA"
-                                    ? { borderTopColor: meta.color, borderTopWidth: 2, boxShadow: `0 0 24px -8px ${meta.color}55` }
-                                    : { borderTopColor: `${meta.color}80`, borderTopWidth: 2 }
-                            }
-                        >
-                            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-                                <span
-                                    className="font-mono text-[11px] font-bold tracking-[0.18em]"
-                                    style={{ color: meta.color }}
-                                >
-                                    {meta.label}
-                                </span>
-                                <span className="rounded-sm border border-white/15 px-2 py-0.5 font-mono text-[10px] tracking-[0.1em] text-white/50">
-                                    {items.length}
-                                </span>
-                            </div>
-
-                            <div className="flex flex-1 flex-col divide-y divide-white/8">
-                                {items.map((s) => {
-                                    const isSelected = s.id === selectedId;
-                                    const isNew = s.id === highlightId;
-                                    return (
-                                        <button
-                                            key={s.id}
-                                            type="button"
-                                            onClick={() => selectSighting(s.id)}
-                                            onMouseEnter={() => setHoveredId(s.id)}
-                                            onMouseLeave={() => setHoveredId(null)}
-                                            aria-pressed={isSelected}
-                                            className={`group relative flex flex-col gap-2 overflow-hidden px-5 py-4 text-left transition-colors hover:bg-white/[0.03] ${isNew ? "hn-row-highlight" : ""
-                                                }`}
-                                        >
-                                            <span
-                                                className={`absolute inset-y-0 left-0 w-[3px] transition-transform duration-300 ${isSelected ? "scale-y-100" : "scale-y-0 group-hover:scale-y-100"
-                                                    }`}
-                                                style={{ backgroundColor: meta.color }}
-                                            />
-
-                                            <div className="flex items-start gap-2 pl-1">
-                                                <Crosshair size={16} className="mt-1 shrink-0" style={{ color: meta.color }} />
-                                                <p className="text-[18px] font-medium leading-snug text-white sm:text-[19px]">
-                                                    {s.designation}
-                                                </p>
-                                            </div>
-
-                                            <p className="pl-1 font-mono text-[9px] tracking-[0.1em] text-white/30">
-                                                {s.sector}
-                                            </p>
-                                            <p className="pl-1 text-[10px] leading-relaxed text-white/40">{s.note}</p>
-
-                                            <div className="mt-1 flex items-center justify-between pl-1">
-                                                <span
-                                                    className="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em]"
-                                                    style={{ color: STATUS_COLOR[s.status] }}
-                                                >
-                                                    <span className="relative flex h-1.5 w-1.5">
-                                                        <span
-                                                            className="hn-status-dot absolute inline-flex h-full w-full rounded-full"
-                                                            style={{ backgroundColor: STATUS_COLOR[s.status] }}
-                                                        />
-                                                        <span
-                                                            className="relative inline-flex h-1.5 w-1.5 rounded-full"
-                                                            style={{ backgroundColor: STATUS_COLOR[s.status] }}
-                                                        />
-                                                    </span>
-                                                    {s.status}
-                                                </span>
-                                                <span className="font-mono text-[9px] tabular-nums tracking-[0.08em] text-white/35">
-                                                    {s.timestamp}
-                                                </span>
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                                {items.length === 0 && (
-                                    <div className="px-5 py-8 text-center font-mono text-[10px] tracking-[0.1em] text-white/25">
-                                        NONE ON FILE
-                                    </div>
-                                )}
-                            </div>
+                {/* ---- Split view: signal timeline (left) + dossier detail (right) ---- */}
+                <div className="grid grid-cols-1 overflow-hidden rounded-sm border border-white/10 lg:grid-cols-[340px_1fr]">
+                    {/* LEFT: timeline */}
+                    <div className="border-b border-white/10 bg-[#0a0a0a] lg:border-b-0 lg:border-r lg:border-white/10">
+                        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                            <span className="font-mono text-[10px] tracking-[0.2em] text-white/40">SIGNAL TIMELINE</span>
+                            <span className="font-mono text-[10px] tracking-[0.2em] text-white/25">{filtered.length} LOGGED</span>
                         </div>
-                    ))}
+
+                        <div className="max-h-[520px] overflow-y-auto">
+                            {filtered.length === 0 ? (
+                                <div className="px-5 py-10 text-center font-mono text-[10px] tracking-[0.1em] text-white/25">
+                                    NONE ON FILE
+                                </div>
+                            ) : (
+                                <div className="relative px-5 py-2">
+                                    <div className="pointer-events-none absolute left-[26px] top-0 bottom-0 w-px bg-white/10" />
+                                    {filtered.map((s) => {
+                                        const isActive = s.id === (panelItem?.id ?? null);
+                                        const isNew = s.id === highlightId;
+                                        const color = threatColor(s.threat);
+                                        return (
+                                            <button
+                                                key={s.id}
+                                                type="button"
+                                                onClick={() => selectSighting(s.id)}
+                                                onMouseEnter={() => setHoveredId(s.id)}
+                                                onMouseLeave={() => setHoveredId(null)}
+                                                aria-pressed={isActive}
+                                                className={`relative flex w-full items-start gap-3 rounded-sm py-3 pl-1 pr-2 text-left transition-colors ${isNew ? "hn-row-highlight" : ""
+                                                    } ${isActive ? "bg-white/[0.04]" : "hover:bg-white/[0.03]"}`}
+                                            >
+                                                <span
+                                                    className="relative z-10 mt-1 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border-2 bg-[#0a0a0a]"
+                                                    style={{ borderColor: color, backgroundColor: isActive ? color : "#0a0a0a" }}
+                                                >
+                                                    {(s.threat === "OMEGA" || isActive) && (
+                                                        <span
+                                                            className="hn-node-pulse absolute inset-0 rounded-full"
+                                                            style={{ border: `1.5px solid ${color}` }}
+                                                        />
+                                                    )}
+                                                </span>
+
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="flex items-center justify-between gap-2">
+                                                        <span className={`font-mono text-[10px] tracking-[0.1em] ${isActive ? "text-white" : "text-white/45"}`}>
+                                                            {s.timestamp}
+                                                        </span>
+                                                        <span
+                                                            className="relative flex h-1.5 w-1.5 shrink-0"
+                                                        >
+                                                            <span
+                                                                className="hn-status-dot absolute inline-flex h-full w-full rounded-full"
+                                                                style={{ backgroundColor: STATUS_COLOR[s.status] }}
+                                                            />
+                                                            <span
+                                                                className="relative inline-flex h-1.5 w-1.5 rounded-full"
+                                                                style={{ backgroundColor: STATUS_COLOR[s.status] }}
+                                                            />
+                                                        </span>
+                                                    </span>
+                                                    <span className={`mt-1 block truncate text-[13px] font-semibold tracking-wide ${isActive ? "text-white" : "text-white/60"}`}>
+                                                        {codenameOf(s.designation)}
+                                                    </span>
+                                                    <span className="mt-0.5 block truncate font-mono text-[9px] tracking-[0.1em] text-white/30">
+                                                        {s.sector}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* RIGHT: dossier detail panel */}
+                    <div className="relative overflow-hidden bg-[#0a0a0a] p-6 sm:p-10">
+                        {/* diagonal red shard, echoes the console panel's red field */}
+                        <div
+                            className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rotate-45 opacity-[0.16]"
+                            style={{
+                                background: "linear-gradient(135deg, #ff3b30, transparent 65%)",
+                                clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+                            }}
+                        />
+                        <div
+                            className="pointer-events-none absolute -bottom-24 -left-10 h-48 w-48 rotate-12 opacity-[0.08]"
+                            style={{
+                                background: "linear-gradient(135deg, #ff3b30, transparent 70%)",
+                                clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+                            }}
+                        />
+
+                        {panelItem ? (
+                            <div key={panelItem.id} className="hn-panel-in relative">
+                                <div className="mb-6 flex flex-wrap items-center gap-3">
+                                    <span
+                                        className="rounded-sm border px-2.5 py-1 font-mono text-[10px] tracking-[0.15em]"
+                                        style={{ borderColor: threatColor(panelItem.threat), color: threatColor(panelItem.threat) }}
+                                    >
+                                        {panelItem.threat} THREAT
+                                    </span>
+                                    <span
+                                        className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.15em]"
+                                        style={{ color: STATUS_COLOR[panelItem.status] }}
+                                    >
+                                        <span className="relative flex h-1.5 w-1.5">
+                                            <span
+                                                className="hn-status-dot absolute inline-flex h-full w-full rounded-full"
+                                                style={{ backgroundColor: STATUS_COLOR[panelItem.status] }}
+                                            />
+                                            <span
+                                                className="relative inline-flex h-1.5 w-1.5 rounded-full"
+                                                style={{ backgroundColor: STATUS_COLOR[panelItem.status] }}
+                                            />
+                                        </span>
+                                        {panelItem.status}
+                                    </span>
+                                    <span className="font-mono text-[10px] tracking-[0.15em] text-white/30">
+                                        {panelItem.sector}
+                                    </span>
+                                </div>
+
+                                <h4 className="font-imperial text-[42px] leading-[0.92] sm:text-[64px]">
+                                    <span className="text-white">{codenameOf(panelItem.designation)}</span>{" "}
+                                    <span style={{ color: threatColor(panelItem.threat) }}>
+                                        {STATUS_HEADLINE[panelItem.status]}
+                                    </span>
+                                </h4>
+
+                                <p className="mt-5 max-w-lg text-sm leading-relaxed text-white/60">
+                                    {panelItem.note}
+                                </p>
+
+                                <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-white/10 pt-6">
+                                    <span className="font-mono text-[10px] tracking-[0.2em] text-white/30">
+                                        CASE {panelItem.id.toUpperCase()} · LOGGED {panelItem.timestamp}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => trackOnRadar(panelItem.id)}
+                                        className="group ml-auto inline-flex items-center gap-2 rounded-sm border border-white/15 px-4 py-2 font-mono text-[10px] tracking-[0.15em] text-white/70 transition-colors hover:border-[#d80f0f] hover:bg-[#d80f0f] hover:text-white"
+                                    >
+                                        <Crosshair size={12} className="transition-transform duration-300 group-hover:rotate-90" />
+                                        TRACK ON RADAR
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="relative flex min-h-[240px] items-center justify-center font-mono text-[11px] tracking-[0.15em] text-white/30">
+                                NO SIGNAL SELECTED
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="mt-8 flex flex-col items-center gap-4">
