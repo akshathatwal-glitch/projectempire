@@ -1,10 +1,14 @@
 "use client";
 
 import { Search, Menu, LayoutDashboard } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
+  const pathname = usePathname();
+  const isBroadcast = pathname?.includes("brodcast") || false;
+
   return (
-    <nav className="pointer-events-none absolute inset-x-0 top-0 z-50 w-full">
+    <nav className="pointer-events-none fixed inset-x-0 top-0 z-50 w-full">
       <div
         className="
           pointer-events-auto mx-auto flex w-[100vw] max-w-[100vw] items-center
@@ -47,7 +51,15 @@ export default function Navbar() {
             "
             style={{ fontStretch: "condensed" }}
           >
-            EMPIRE<span className="ml-1">STATE OF MIND</span>
+            {isBroadcast ? (
+              <>
+                EMPIRE<span className="ml-1">BROADCAST</span>
+              </>
+            ) : (
+              <>
+                EMPIRE<span className="ml-1">STATE OF MIND</span>
+              </>
+            )}
           </span>
         </a>
 
