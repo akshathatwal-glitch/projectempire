@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 const NAV_LINKS = [
   { label: "Home", href: "/" },
-  { label: "Broadcast", href: "/brodcast" },
+  { label: "Broadcast", href: "/brodcasts" },
   { label: "Dossiers", href: "/dossiers" },
   { label: "Bounties", href: "/bounties" },
   { label: "Holonet", href: "/holonet" },
@@ -59,11 +59,11 @@ export default function Navbar() {
 
   const filteredResults = query.trim()
     ? SEARCH_DATABASE.filter(
-        (item) =>
-          item.title.toLowerCase().includes(query.toLowerCase()) ||
-          item.category.toLowerCase().includes(query.toLowerCase()) ||
-          item.type.toLowerCase().includes(query.toLowerCase())
-      )
+      (item) =>
+        item.title.toLowerCase().includes(query.toLowerCase()) ||
+        item.category.toLowerCase().includes(query.toLowerCase()) ||
+        item.type.toLowerCase().includes(query.toLowerCase())
+    )
     : SEARCH_DATABASE.slice(0, 4);
 
   const handleSelectResult = (href: string) => {
@@ -90,10 +90,9 @@ export default function Navbar() {
             onClick={() => setSearchOpen((prev) => !prev)}
             className={`
               flex h-9 items-center gap-2 rounded-sm border px-2.5 text-xs font-mono tracking-wider transition
-              ${
-                searchOpen
-                  ? "border-red-500/60 bg-red-600/20 text-white"
-                  : "border-white/20 text-white/90 hover:bg-white/10 hover:text-white"
+              ${searchOpen
+                ? "border-red-500/60 bg-red-600/20 text-white"
+                : "border-white/20 text-white/90 hover:bg-white/10 hover:text-white"
               }
             `}
           >
@@ -124,9 +123,8 @@ export default function Navbar() {
 
           {/* NAV LINKS */}
           <div
-            className={`flex items-center gap-1 overflow-hidden transition-all duration-300 ease-out ${
-              menuOpen ? "max-w-[600px] opacity-100" : "max-w-0 opacity-0"
-            }`}
+            className={`flex items-center gap-1 overflow-hidden transition-all duration-300 ease-out ${menuOpen ? "max-w-[600px] opacity-100" : "max-w-0 opacity-0"
+              }`}
           >
             {NAV_LINKS.map((link) => {
               const active = isActive(link.href);
@@ -204,15 +202,18 @@ export default function Navbar() {
       </div>
 
       {/* SEARCH OVERLAY / IMPERIAL COMMAND PALETTE MODAL */}
-      {searchOpen && (
+      <div
+        onClick={() => setSearchOpen(false)}
+        className={`fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/75 backdrop-blur-sm transition-all duration-300 ease-out ${
+          searchOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+      >
         <div
-          onClick={() => setSearchOpen(false)}
-          className="pointer-events-auto fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+          className={`w-full max-w-xl rounded-sm border border-red-950/80 bg-[#0a0a0a] shadow-2xl overflow-hidden transition-all duration-300 ease-out ${
+            searchOpen ? "translate-y-0 scale-100 opacity-100" : "-translate-y-4 scale-95 opacity-0"
+          }`}
+          onClick={(e) => e.stopPropagation()}
         >
-          <div
-            className="w-full max-w-xl rounded-sm border border-red-950/80 bg-[#0a0a0a] shadow-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
             {/* Input Header */}
             <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3.5 bg-black/40">
               <Search size={18} className="text-red-500 shrink-0" />
@@ -280,7 +281,6 @@ export default function Navbar() {
             </div>
           </div>
         </div>
-      )}
     </nav>
   );
 }
