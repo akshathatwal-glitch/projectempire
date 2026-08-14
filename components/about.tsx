@@ -57,7 +57,7 @@ export default function About() {
         duration: 1,
         stagger: 0.2,
       }, "-=0.4");
-      
+
   }, { scope: containerRef });
 
   return (

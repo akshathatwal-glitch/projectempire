@@ -31,17 +31,19 @@
   font-weight: bold;
   font-size: 6rem;
   width: 45rem;
-  margin-top: 20rem;
-  margin-left: 35rem;
+  margin-top: 40rem;
+  margin-left: 65rem;
   text-align: right;
   text-transform: uppercase;
+  filter: blur(1px);
+  opacity: 0.9;
 }
 
 .text-spec {
-  
+
   color: transparent;
   -webkit-text-stroke: 2px white;
- 
+
 }
 
 #subheading {
@@ -57,4 +59,6 @@
   top: 15rem;
   left: 10rem;
   line-height: 0.9;
+  filter: blur(1px);
+  opacity: 0.9;
 }

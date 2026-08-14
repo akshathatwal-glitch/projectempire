@@ -30,7 +30,7 @@ import {
     ChevronRight,
     ScanLine,
     CircleSlash,
-    Menu,
+    Menu, Skull, Crosshair, Radiation
 } from 'lucide-react';
 import Navbar from '@/components/navbar';
 
@@ -198,51 +198,6 @@ const STATUS_FILTERS: Array<Status | 'ALL'> = ['ALL', 'ACTIVE', 'CAPTURED', 'TER
 
 type SortKey = 'THREAT' | 'RECENT';
 
-// Generates a 2-row x 4-column scatter layout for the card board, with
-// jitter so it doesn't look like a rigid grid. When `randomize` is false
-// it uses a deterministic pseudo-random formula (same output every time)
-// — used only for the very first server-rendered pass, so the server and
-// client markup match and React doesn't throw a hydration mismatch. Once
-// mounted, an effect below calls this again with `randomize: true`, which
-// uses real Math.random() and gives a fresh scatter on every page load.
-function generateScatterPositions(count: number, randomize: boolean): React.CSSProperties[] {
-    const cols = 4;
-    const cellWidthPct = 100 / cols;
-    const rowHeightPx = 340;
-    const cardWidthPct = 21; // footprint of a 14rem card inside the max-w-5xl board
-
-    const seededRand = (seed: number) => {
-        const x = Math.sin(seed * 999) * 10000;
-        return x - Math.floor(x); // 0..1, deterministic per seed
-    };
-
-    return Array.from({ length: count }).map((_, i) => {
-        const row = Math.floor(i / cols);
-        const col = i % cols;
-        const baseLeft = col * cellWidthPct;
-        const baseTop = row * rowHeightPx;
-
-        const r1 = randomize ? Math.random() : seededRand(i + 1);
-        const r2 = randomize ? Math.random() : seededRand(i + 2);
-        const r3 = randomize ? Math.random() : seededRand(i + 3);
-
-        const leftJitter = (r1 - 0.5) * cellWidthPct * 0.7;
-        const topJitter = (r2 - 0.5) * 110;
-        const rotateDeg = (r3 - 0.5) * 16;
-
-        const left = Math.max(0, Math.min(100 - cardWidthPct, baseLeft + leftJitter));
-        const top = Math.max(0, baseTop + topJitter);
-
-        return {
-            position: 'absolute',
-            top: `${top}px`,
-            left: `${left}%`,
-            rotate: `${rotateDeg.toFixed(1)}deg`,
-            width: '14rem',
-        } as React.CSSProperties;
-    });
-}
-
 // ————————————————————————————————————————————————————————————
 // SMALL PIECES
 // ————————————————————————————————————————————————————————————
@@ -272,25 +227,130 @@ function StatusBadge({ status }: { status: Status }) {
     );
 }
 
-function ThreatMeter({ level, size = 'sm' }: { level: number; size?: 'sm' | 'lg' }) {
-    const bars = size === 'lg' ? 'h-5 w-2' : 'h-3 w-1.5';
+function ThreatMeter({
+    level,
+    size = 'sm',
+    onChange,
+}: {
+    level: number;
+    size?: 'sm' | 'lg';
+    onChange?: (level: number) => void;
+}) {
+    const [hoverLevel, setHoverLevel] = useState<number | null>(null);
+    const trackHeight = size === 'lg' ? 'h-2.5' : 'h-1.5';
+    const width = size === 'lg' ? 'w-28' : 'w-16';
+    const interactive = typeof onChange === 'function';
+
+    const displayLevel = hoverLevel ?? level;
+    const pct = Math.max(0, Math.min(100, (displayLevel / 5) * 100));
+
+    const handleMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!interactive) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const ratio = (e.clientX - rect.left) / rect.width;
+        const next = Math.ceil(Math.max(0, Math.min(1, ratio)) * 5);
+        setHoverLevel(next);
+    };
+
     return (
-        <div className="flex items-end gap-1" role="img" aria-label={`Threat level ${level} of 5`}>
-            {Array.from({ length: 5 }).map((_, i) => (
-                <span
-                    key={i}
-                    className={`${bars} rounded-[1px] transition-colors ${i < level ? 'bg-[#d80f0f] shadow-[0_0_6px_rgba(216,15,15,0.7)]' : 'bg-white/10'
-                        }`}
-                    style={{ height: size === 'lg' ? `${8 + i * 4}px` : `${6 + i * 2.5}px` }}
-                />
-            ))}
+        <div
+            className="group flex items-center gap-1.5"
+            role={interactive ? 'slider' : 'img'}
+            aria-label={`Threat level ${level} of 5`}
+            aria-valuemin={interactive ? 0 : undefined}
+            aria-valuemax={interactive ? 5 : undefined}
+            aria-valuenow={interactive ? level : undefined}
+            tabIndex={interactive ? 0 : undefined}
+            onKeyDown={
+                interactive
+                    ? (e) => {
+                        if (e.key === 'ArrowRight') onChange?.(Math.min(5, level + 1));
+                        if (e.key === 'ArrowLeft') onChange?.(Math.max(0, level - 1));
+                    }
+                    : undefined
+            }
+        >
+            <div
+                className={`relative ${width} ${trackHeight} overflow-hidden rounded-full bg-white/10 ${interactive ? 'cursor-pointer' : ''
+                    }`}
+                onPointerMove={handleMove}
+                onPointerLeave={() => setHoverLevel(null)}
+                onClick={() => {
+                    if (interactive && hoverLevel !== null) onChange?.(hoverLevel);
+                }}
+            >
+                {/* subtle track ticks at each level boundary */}
+                <div className="pointer-events-none absolute inset-0 flex justify-between px-[1px]">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <span key={i} className="h-full w-px bg-black/40" />
+                    ))}
+                </div>
+
+                {/* glowing fill */}
+                <div
+                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#8a0a0a] via-[#d80f0f] to-[#ff3b3b] transition-[width] duration-300 ease-out"
+                    style={{
+                        width: `${pct}%`,
+                        boxShadow:
+                            '0 0 8px rgba(216,15,15,0.85), 0 0 16px rgba(216,15,15,0.5), inset 0 0 4px rgba(255,255,255,0.25)',
+                    }}
+                >
+                    {/* animated shimmer pulse on the glow */}
+                    <div className="absolute inset-0 animate-pulse rounded-full bg-white/10" />
+                </div>
+            </div>
+
+            <span className="font-mono text-[9px] tabular-nums text-white/40 transition-colors group-hover:text-[#ff3b3b]">
+                {displayLevel}/5
+            </span>
         </div>
     );
 }
 
 // ————————————————————————————————————————————————————————————
-// DRAGGABLE FILE CARD (compact)
+// DRAGGABLE FILE CARD — v4 (tightened height)
+//
+// Changes from v3:
+// 1. Internal card padding reduced across the codename block, the Open
+//    File button block, and the footer info block — each card is now
+//    visibly shorter without losing any content.
+// 2. Row height and vertical jitter in generateScatterPositions() are
+//    reduced to match the new shorter card height, so rows sit closer
+//    together and there's less empty space in the board.
 // ————————————————————————————————————————————————————————————
+
+// Card width scales with codename length so short names (WIDOW-9) get a
+// compact card and long ones (LOOSE THREAD) get room to breathe.
+function codenameCardWidth(name: string) {
+    const len = name.length;
+    if (len <= 6) return 9.5; // rem
+    if (len <= 8) return 10.5;
+    if (len <= 10) return 12;
+    if (len <= 13) return 13.5;
+    return 15.5;
+}
+
+// Font size still adjusts a little within that width, but does much less
+// work than before now that the card itself can grow.
+function codenameFontSize(name: string) {
+    const len = name.length;
+    if (len <= 8) return 'text-[36px]';
+    if (len <= 12) return 'text-[28px]';
+    return 'text-[24px]';
+}
+
+function bgIcon(status: Status) {
+    switch (status) {
+        case 'ACTIVE':
+            return Crosshair;
+        case 'CAPTURED':
+            return ShieldAlert;
+        case 'TERMINATED':
+            return Skull;
+        case 'UNCONFIRMED':
+            return Radiation;
+    }
+}
 
 function DossierDragCard({
     file,
@@ -301,84 +361,147 @@ function DossierDragCard({
     position: React.CSSProperties;
     onOpen: (f: Dossier) => void;
 }) {
+    const c = statusColor(file.status);
+    const BgIcon = bgIcon(file.status);
+
     return (
         <DraggableCardBody
             style={position}
-            className="min-h-0 rounded-sm border border-white/10 bg-[#0a0a0a] p-0 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.85)] hover:border-[#d80f0f]/50"
+            className="group min-h-0 overflow-hidden rounded-sm border border-white/10 bg-[#0a0a0a] p-0 shadow-[0_16px_40px_-15px_rgba(0,0,0,0.85)] hover:border-[#d80f0f]/50"
         >
-            <div className="relative flex flex-col">
-                {/* photo strip — thin band instead of a big empty box, just enough for status + a watermark id */}
-                <div className="relative h-16 w-full overflow-hidden bg-[#050505]">
-                    <div
-                        className="absolute inset-0 opacity-80"
-                        style={{
-                            background:
-                                'radial-gradient(ellipse at 30% 50%, rgba(216,15,15,0.35), transparent 70%), linear-gradient(180deg, #111112 0%, #050505 100%)',
-                        }}
+            <div className="absolute inset-0 flex flex-col">
+                {/* icon watermark — sits behind everything, drifts + brightens on hover/drag */}
+                <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+                    <BgIcon
+                        className="absolute -bottom-5 -right-5 h-24 w-24 text-[#d80f0f] opacity-[0.08] transition-all duration-300 ease-out group-hover:opacity-[0.16] group-hover:-rotate-6 group-active:opacity-[0.22]"
+                        strokeWidth={1}
+                        style={{ rotate: '-8deg' }}
                     />
-                    <svg
-                        viewBox="0 0 100 100"
-                        className="pointer-events-none absolute -right-2 -top-2 h-20 w-20 fill-black/60 stroke-white/[0.06]"
-                        strokeWidth={0.5}
-                    >
-                        <circle cx="50" cy="34" r="16" />
-                        <path d="M20 92 C20 62 34 50 50 50 C66 50 80 62 80 92 Z" />
-                    </svg>
-                    <div className="absolute left-1.5 top-1.5">
-                        <StatusBadge status={file.status} />
-                    </div>
-                    <div className="absolute bottom-1.5 right-1.5 font-mono text-[8px] tracking-widest text-white/30">
-                        {file.id}
-                    </div>
+                    <BgIcon
+                        className="absolute -left-3 -top-3 h-12 w-12 text-white opacity-[0.04] transition-all duration-300 ease-out group-hover:opacity-[0.09]"
+                        strokeWidth={1}
+                        style={{ rotate: '12deg' }}
+                    />
                 </div>
 
-                {/* content — the codename is the whole point of the card, everything else is a supporting label */}
-                <div className="flex flex-col gap-2.5 p-3.5">
-                    <div>
-                        <h3 className="font-imperial select-none text-[28px] leading-[0.95] tracking-wide text-white">
-                            {file.codename}
-                        </h3>
-                        <p className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.15em] text-white/35">
-                            {file.realName}
-                        </p>
-                    </div>
+                {/* faint scanline texture over the whole card */}
+                <div
+                    className="pointer-events-none absolute inset-0 z-20 opacity-[0.06]"
+                    style={{
+                        background:
+                            'repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 3px)',
+                    }}
+                />
 
-                    <div className="space-y-0.5 text-[10px] text-white/50">
-                        <div className="flex items-center gap-1.5">
-                            <MapPin className="h-2.5 w-2.5 shrink-0 text-[#d80f0f]/60" />
-                            <span className="truncate">{file.sector}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <Users className="h-2.5 w-2.5 shrink-0 text-[#d80f0f]/60" />
-                            <span className="truncate">{file.affiliation}</span>
-                        </div>
-                    </div>
+                {/* top strip — id left, status right */}
+                <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-white/10 bg-black/50 px-2.5 py-1">
+                    <span className="font-mono text-[7px] tracking-[0.2em] text-white/30">{file.id}</span>
+                    <span className={`flex items-center gap-1 font-mono text-[7px] tracking-[0.18em] ${c.text}`}>
+                        <span className={`h-1 w-1 rounded-full ${c.dot} ${file.status === 'ACTIVE' ? 'animate-pulse' : ''}`} />
+                        {file.status}
+                    </span>
+                </div>
 
-                    <div className="flex items-center justify-between border-t border-white/5 pt-2.5">
-                        <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-[7px] uppercase tracking-[0.2em] text-white/25">
-                                Threat
-                            </span>
-                            <ThreatMeter level={file.threat} />
-                        </div>
-                        {/* explicit tap target so dragging never gets mistaken for opening the file */}
-                        <button
-                            type="button"
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onOpen(file);
-                            }}
-                            className="group flex items-center gap-1 rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.15em] text-emerald-400 transition-all duration-150 hover:border-emerald-400 hover:bg-emerald-500 hover:text-black hover:shadow-[0_0_16px_-2px_rgba(16,185,129,0.8)] active:scale-90 active:bg-emerald-600"
-                        >
-                            Open
-                            <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-                        </button>
+                {/* codename — width of the card already fits it, font just tunes the fill */}
+                <div className="relative z-10 flex flex-1 flex-col justify-center px-3 py-1.5">
+                    <span className="mb-1 block h-[2px] w-7 bg-[#d80f0f]" />
+                    <h3
+                        className={`font-imperial select-none break-words leading-[0.9] tracking-wide text-white ${codenameFontSize(
+                            file.codename,
+                        )}`}
+                    >
+                        {file.codename}
+                    </h3>
+                    <p className="mt-0.5 truncate font-mono text-[8px] uppercase tracking-[0.15em] text-white/30">
+                        {file.realName}
+                    </p>
+                </div>
+
+                {/* open — green "access granted" terminal action, animated */}
+                <div className="relative z-10 shrink-0 px-3 pb-1.5">
+                    <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onOpen(file);
+                        }}
+                        className="group/btn relative flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-sm border border-emerald-500/50 bg-emerald-500/10 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-500 hover:text-black hover:shadow-[0_0_22px_-4px_rgba(16,185,129,0.85)] active:scale-[0.94]"
+                    >
+                        {/* shimmer sweep on hover, same language as the status chips elsewhere in the file */}
+                        <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 ease-out group-hover/btn:translate-x-full" />
+                        <span className="relative flex items-center gap-1.5">
+                            Open File
+                            <ChevronRight className="h-3 w-3 transition-transform duration-200 group-hover/btn:translate-x-1.5" />
+                        </span>
+                    </button>
+                </div>
+
+                {/* everything else — small, quiet, last */}
+                <div className="relative z-10 shrink-0 space-y-0.5 border-t border-white/10 px-3 py-1.5 text-white/40">
+                    <div className="flex items-center gap-1.5">
+                        <MapPin className="h-2 w-2 shrink-0 text-[#d80f0f]/60" />
+                        <span className="truncate font-mono text-[8px] tracking-[0.02em]">{file.sector}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <Users className="h-2 w-2 shrink-0 text-[#d80f0f]/60" />
+                        <span className="truncate font-mono text-[8px] tracking-[0.02em]">{file.affiliation}</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-0.5">
+                        <span className="font-mono text-[7px] uppercase tracking-[0.18em] text-white/25">Threat</span>
+                        <ThreatMeter level={file.threat} />
                     </div>
                 </div>
             </div>
         </DraggableCardBody>
     );
+}
+
+// ————————————————————————————————————————————————————————————
+// Scatter layout — width comes from each card's own codename, and row
+// height / vertical jitter are tuned to the shorter card height above so
+// the board packs tighter with fewer visible gaps.
+// ————————————————————————————————————————————————————————————
+
+function generateScatterPositions(dossiers: Dossier[], randomize: boolean): React.CSSProperties[] {
+    const cols = 4;
+    const cellWidthPct = 100 / cols;
+    const rowHeightPx = 210; // tightened from 300 to match shorter cards
+    const boardWidthPx = 1024; // matches the board's max-w-5xl reference width
+
+    const seededRand = (seed: number) => {
+        const x = Math.sin(seed * 999) * 10000;
+        return x - Math.floor(x);
+    };
+
+    return dossiers.map((d, i) => {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const baseLeft = col * cellWidthPct;
+        const baseTop = row * rowHeightPx;
+
+        const r1 = randomize ? Math.random() : seededRand(i + 1);
+        const r2 = randomize ? Math.random() : seededRand(i + 2);
+        const r3 = randomize ? Math.random() : seededRand(i + 3);
+
+        const widthRem = codenameCardWidth(d.codename);
+        const cardWidthPct = ((widthRem * 16) / boardWidthPx) * 100;
+
+        const leftJitter = (r1 - 0.5) * cellWidthPct * 0.7;
+        const topJitter = (r2 - 0.5) * 60; // tightened from 100
+        const rotateDeg = (r3 - 0.5) * 16;
+
+        const left = Math.max(0, Math.min(100 - cardWidthPct, baseLeft + leftJitter));
+        const top = Math.max(0, baseTop + topJitter);
+
+        return {
+            position: 'absolute',
+            top: `${top}px`,
+            left: `${left}%`,
+            rotate: `${rotateDeg.toFixed(1)}deg`,
+            width: `${widthRem}rem`,
+        } as React.CSSProperties;
+    });
 }
 
 // ————————————————————————————————————————————————————————————
@@ -505,11 +628,11 @@ export default function DossiersPage() {
     // re-rolled with real randomness once mounted on the client below —
     // so the board is scattered differently every time the page loads.
     const [scatterPositions, setScatterPositions] = useState<React.CSSProperties[]>(() =>
-        generateScatterPositions(DOSSIERS.length, false),
+        generateScatterPositions(DOSSIERS, false),
     );
 
     useEffect(() => {
-        setScatterPositions(generateScatterPositions(DOSSIERS.length, true));
+        setScatterPositions(generateScatterPositions(DOSSIERS, true));
     }, []);
 
     const filtered = useMemo(() => {
@@ -572,7 +695,7 @@ export default function DossiersPage() {
 
                     {/* Card board — defines the section height, sits ON TOP of the title */}
                     {filtered.length ? (
-                        <DraggableCardContainer className="relative z-10 mx-auto h-[760px] w-full max-w-5xl">
+                        <DraggableCardContainer className="relative z-10 mx-auto h-[560px] w-full max-w-5xl">
                             {filtered.map((f, i) => (
                                 <DossierDragCard
                                     key={f.id}
