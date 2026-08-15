@@ -4,16 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import {
     Radio,
     Send,
-    Satellite,
     ShieldAlert,
-    Terminal,
-    CheckCircle2,
     X,
-    Search,
     Menu,
     ChevronRight,
-    Plus,
 } from "lucide-react";
+import { ScrollBasedVelocity } from "@/components/ui/scroll-based-velocity";
+import HunterCommendationsDemo from "@/components/hunter-commendations";
+import { ImperialSearch } from "@/components/imperial-search";
 
 /* ------------------------------------------------------------------ */
 /*  Static data                                                        */
@@ -57,46 +55,43 @@ interface BroadcastEntry {
 
 const INITIAL_LOG: BroadcastEntry[] = [
     {
-        id: "b3",
-        message: "Reminder: unregistered hyperspace lanes in the Mid Rim are to be reported within the hour.",
-        sectors: ["MID RIM", "COLONIES"],
-        priority: "STANDARD",
+        id: "tx-881",
+        message: "ORDER 66 ENFORCEMENT DIRECTIVE: All sectors report status on target suppression.",
+        sectors: ["OUTER RIM", "MID RIM"],
+        priority: "OMEGA",
         status: "SENT",
         timestamp: "04:12 GCT",
     },
     {
-        id: "b2",
-        message: "Increase patrol density around known smuggler routes in the Outer Rim following recent contact reports.",
-        sectors: ["OUTER RIM"],
+        id: "tx-874",
+        message: "SYNDICATE RECRUITMENT WARNING: Intercepted transmissions indicate cell movement in Coruscant lower levels.",
+        sectors: ["CORE WORLDS"],
         priority: "URGENT",
         status: "SENT",
-        timestamp: "22:47 GCT",
+        timestamp: "02:44 GCT",
     },
     {
-        id: "b1",
-        message: "All sectors: heightened alert status remains active until further notice from Imperial Command.",
-        sectors: ["OUTER RIM", "CORE WORLDS", "MID RIM", "COLONIES", "EXPANSION REGION", "UNKNOWN REGIONS", "WILD SPACE"],
-        priority: "OMEGA",
+        id: "tx-860",
+        message: "ROUTINE PATROL COMMUNIQUE: Standard orbital scans completed for Expansion Region.",
+        sectors: ["EXPANSION REGION"],
+        priority: "STANDARD",
         status: "SENT",
-        timestamp: "18:03 GCT",
+        timestamp: "22:15 GCT",
     },
 ];
 
 const UPLINK_STEPS = [
-    "Establishing secure uplink...",
-    "Encrypting payload...",
-    "Routing to sector relays...",
-    "Transmission complete.",
+    "ENCRYPTING PAYLOAD (AES-512)...",
+    "ACQUIRING HOLONET RELAY NODE...",
+    "HANDSHAKE CONFIRMED — BROADCASTING...",
+    "TRANSMISSION COMPLETE.",
 ];
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 
 export default function BroadcastConsole() {
     const [composeOpen, setComposeOpen] = useState(false);
     const [message, setMessage] = useState("");
-    const [selectedSectors, setSelectedSectors] = useState<string[]>(["CORE WORLDS"]);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedSectors, setSelectedSectors] = useState<string[]>(["OUTER RIM"]);
     const [priority, setPriority] = useState<Priority>("STANDARD");
     const [transmitting, setTransmitting] = useState(false);
     const [logLines, setLogLines] = useState<string[]>([]);
@@ -170,8 +165,16 @@ export default function BroadcastConsole() {
         });
     }
 
+    const filteredLog = searchQuery.trim()
+        ? log.filter(
+            (e) =>
+                e.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                e.sectors.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()))
+        )
+        : log;
+
     return (
-        <section className="w-full bg-[#050505] text-white">
+        <section className="w-full bg-[#050505] text-white min-h-screen">
             <style>{`
         .font-imperial {
           font-family: Impact, Haettenschweiler, "Franklin Gothic Bold", sans-serif;
@@ -207,12 +210,10 @@ export default function BroadcastConsole() {
       `}</style>
 
             {/* ---------------- Header band ---------------- */}
-            <div className="relative overflow-hidden px-6 pt-16 pb-14 sm:px-10">
+            <div className="relative overflow-hidden px-6 pt-24 pb-14 sm:px-10">
                 <div className="pointer-events-none absolute inset-0 opacity-60 [background:radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(216,15,15,0.25),transparent_70%)]" />
 
-
                 <div className="relative mx-auto mt-10 flex max-w-6xl flex-col items-center text-center">
-                    {/* <Radio size={30} strokeWidth={1.3} className="mb-5 text-[#ff3b30]" /> */}
                     <h1 className="font-imperial text-[44px] leading-none tracking-wide sm:text-[64px]">
                         BROADCAST CONSOLE
                     </h1>
@@ -227,7 +228,7 @@ export default function BroadcastConsole() {
                 <div className="relative overflow-hidden rounded-sm border border-white/15 bg-[#b5130e] [background-image:radial-gradient(ellipse_90%_70%_at_25%_0%,rgba(255,255,255,0.14),transparent_60%)]">
                     <div className="flex items-center justify-between border-b border-white/15 px-6 py-4">
                         <div className="flex items-center gap-4">
-                            <Search size={16} className="text-white/70" />
+                            <ImperialSearch value={searchQuery} onValueChange={setSearchQuery} placeholder="SEARCH BROADCASTS..." />
                             <Menu size={16} className="text-white/70" />
                         </div>
                         <span className="font-imperial text-lg tracking-wide">IMPERIAL COMMS</span>
@@ -258,13 +259,28 @@ export default function BroadcastConsole() {
                                 OPTIONAL
                             </h2>
 
-                            <p className="mt-5 max-w-md text-sm leading-relaxed text-white/85">
-                                Review the transmission log below, then push a new message live
-                                across the Holonet relay network.
-                            </p>
+                            <div className="mt-6 flex items-center gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setComposeOpen(true)}
+                                    className="group inline-flex items-center gap-2 rounded-sm bg-white px-6 py-3 font-imperial text-lg tracking-wide text-[#050505] transition-all hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.4)]"
+                                >
+                                    NEW TRANSMISSION
+                                    <Send size={16} className="transition-transform group-hover:translate-x-1" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* Velocity Ticker */}
+            <div className="relative w-full overflow-hidden border-y border-red-950/60 bg-[#050505] py-4 my-8">
+                <ScrollBasedVelocity
+                    text="BROADCAST CONSOLE • TRANSMITTING ACROSS SECTORS • ORDER 66 ENFORCED • CLEARANCE OMEGA • "
+                    default_velocity={2}
+                    className="font-mono text-2xl font-bold uppercase tracking-[0.2em] text-[#ff3b30]/85 drop-shadow-[0_0_15px_rgba(216,15,15,0.6)] sm:text-3xl"
+                />
             </div>
 
             {/* ---------------- Transmission log ---------------- */}
@@ -275,7 +291,7 @@ export default function BroadcastConsole() {
                             TRANSMISSION LOG
                         </h3>
                         <p className="mt-2 font-mono text-[10px] tracking-[0.2em] text-white/35">
-                            {log.length} RECORDS ON FILE · HOLONET RELAY NETWORK
+                            {filteredLog.length} RECORDS ON FILE · HOLONET RELAY NETWORK
                         </p>
                     </div>
                     <span className="hidden font-mono text-[10px] tracking-[0.2em] text-white/25 sm:block">
@@ -284,7 +300,7 @@ export default function BroadcastConsole() {
                 </div>
 
                 <div className="divide-y divide-white/8 rounded-sm border border-white/10 bg-[#0a0a0a]">
-                    {log.map((entry) => {
+                    {filteredLog.map((entry) => {
                         const meta = PRIORITIES.find((p) => p.id === entry.priority)!;
                         const isNew = entry.id === highlightId;
                         return (
@@ -298,141 +314,138 @@ export default function BroadcastConsole() {
                                 <div className="flex min-w-0 items-start gap-4 pl-2">
                                     <div
                                         className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border"
-                                        style={{ borderColor: `${meta.color}55`, boxShadow: `0 0 14px ${meta.color}33` }}
+                                        style={{
+                                            borderColor: `${meta.color}40`,
+                                            background: `${meta.color}15`,
+                                            color: meta.color,
+                                        }}
                                     >
-                                        <Satellite size={15} style={{ color: meta.color }} />
+                                        <Radio size={16} />
                                     </div>
+
                                     <div className="min-w-0">
-                                        <p className="text-[15px] leading-snug text-white/90 sm:max-w-lg">
+                                        <div className="flex items-center gap-2 font-mono text-[10px] tracking-[0.15em] text-white/40">
+                                            <span>{entry.timestamp}</span>
+                                            <span>·</span>
+                                            <span className="uppercase" style={{ color: meta.color }}>
+                                                {entry.priority}
+                                            </span>
+                                        </div>
+                                        <p className="mt-1 font-sans text-sm leading-relaxed text-white/90">
                                             {entry.message}
-                                        </p>
-                                        <p className="mt-2 font-mono text-[10px] tracking-[0.1em] text-white/35">
-                                            {entry.sectors.join(" · ")}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="flex shrink-0 items-center gap-5 pl-11 sm:pl-0">
-                                    <span
-                                        className="rounded-sm border px-2.5 py-1 font-mono text-[10px] tracking-[0.12em]"
-                                        style={{ borderColor: meta.color, color: meta.color }}
-                                    >
-                                        {meta.label}
-                                    </span>
-
-                                    <span className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.12em] text-[#3ddc84]">
-                                        <span className="relative flex h-1.5 w-1.5">
-                                            <span className="bc-status-dot absolute inline-flex h-full w-full rounded-full bg-[#3ddc84]" />
-                                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#3ddc84]" />
+                                <div className="flex flex-wrap gap-1.5 pl-2 sm:pl-0">
+                                    {entry.sectors.map((sec) => (
+                                        <span
+                                            key={sec}
+                                            className="rounded-sm border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[9px] tracking-[0.12em] text-white/60"
+                                        >
+                                            {sec}
                                         </span>
-                                        {entry.status}
-                                    </span>
-
-                                    <span className="font-mono text-[11px] tabular-nums tracking-[0.1em] text-white/50 [text-shadow:0_0_12px_rgba(255,255,255,0.15)]">
-                                        {entry.timestamp}
-                                    </span>
+                                    ))}
                                 </div>
                             </div>
                         );
                     })}
-                    <div ref={logEndRef} />
-                </div>
-
-                <div className="mt-8 flex justify-center">
-                    <button
-                        type="button"
-                        onClick={() => setComposeOpen(true)}
-                        className="group inline-flex items-center gap-2 rounded-sm border border-white/15 bg-[#0a0a0a] px-7 py-3.5 font-imperial text-lg tracking-wide text-white transition-all hover:border-[#d80f0f]/60 hover:bg-[#d80f0f]"
-                    >
-                        <Plus size={17} className="transition-transform group-hover:rotate-90" />
-                        NEW TRANSMISSION
-                    </button>
                 </div>
             </div>
 
-            {/* ---------------- Compose modal ---------------- */}
+            {/* Hunter Commendations Section */}
+            <div className="mx-auto max-w-6xl px-6 pb-20 sm:px-10">
+                <HunterCommendationsDemo />
+            </div>
+
+            {/* ---------------- Compose Modal ---------------- */}
             {composeOpen && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-                    onClick={() => !transmitting && setComposeOpen(false)}
-                >
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="bc-modal-in relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-sm border border-white/12 bg-[#0a0a0a] p-6 shadow-[0_0_60px_-15px_rgba(216,15,15,0.5)] sm:p-8"
-                    >
-                        <div className="mb-6 flex items-center justify-between">
-                            <div className="flex items-center gap-2 font-mono text-[11px] tracking-[0.25em] text-white/40">
-                                <Terminal size={14} />
-                                COMPOSE TRANSMISSION
+                        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                        onClick={() => !transmitting && setComposeOpen(false)}
+                    />
+
+                    <div className="bc-modal-in relative w-full max-w-2xl rounded-sm border border-white/15 bg-[#0a0a0a] p-6 shadow-2xl sm:p-8">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                            <div className="flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] text-[#ff3b30]">
+                                <Radio size={14} className="bc-status-dot" />
+                                NEW IMPERIAL BROADCAST
                             </div>
                             <button
                                 type="button"
                                 onClick={() => !transmitting && setComposeOpen(false)}
-                                className="rounded-sm p-1 text-white/40 transition-colors hover:text-white"
-                                aria-label="Close"
+                                disabled={transmitting}
+                                className="text-white/40 hover:text-white disabled:opacity-30"
                             >
                                 <X size={18} />
                             </button>
                         </div>
 
-                        <div className="mb-6 flex flex-wrap gap-2">
-                            {TEMPLATES.map((t) => (
-                                <button
-                                    key={t.label}
-                                    type="button"
-                                    onClick={() => applyTemplate(t.text)}
-                                    className="rounded-sm border border-white/10 px-3 py-1.5 font-mono text-[11px] tracking-[0.08em] text-white/60 transition-colors hover:border-[#d80f0f]/60 hover:text-white"
-                                >
-                                    {t.label}
-                                </button>
-                            ))}
+                        {/* Templates */}
+                        <div className="mt-6">
+                            <label className="block font-mono text-[10px] tracking-[0.15em] text-white/40 uppercase mb-2">
+                                PRESET DIRECTIVES
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {TEMPLATES.map((t) => (
+                                    <button
+                                        key={t.label}
+                                        type="button"
+                                        onClick={() => applyTemplate(t.text)}
+                                        className="rounded-sm border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-[10px] tracking-[0.1em] text-white/70 hover:border-red-500/50 hover:text-white transition"
+                                    >
+                                        {t.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
-                        <div className="relative">
+                        {/* Message payload */}
+                        <div className="mt-6">
+                            <label className="block font-mono text-[10px] tracking-[0.15em] text-white/40 uppercase mb-2">
+                                TRANSMISSION PAYLOAD
+                            </label>
                             <textarea
                                 value={message}
-                                onChange={(e) => {
-                                    setMessage(e.target.value);
-                                    if (error) setError(null);
-                                }}
-                                placeholder="Draft your message to the sectors..."
+                                onChange={(e) => setMessage(e.target.value)}
+                                disabled={transmitting}
+                                placeholder="ENTER BROADCAST TEXT..."
                                 rows={4}
-                                maxLength={400}
-                                className="w-full resize-none rounded-sm border border-white/10 bg-black/40 p-4 text-sm leading-relaxed text-white placeholder:text-white/30 outline-none transition-colors focus:border-[#d80f0f]/70"
+                                className="w-full rounded-sm border border-white/15 bg-black/60 p-3 font-mono text-xs tracking-wider text-white placeholder-white/30 outline-none focus:border-red-500/60"
                             />
-                            <span className="absolute bottom-3 right-4 font-mono text-[10px] text-white/25">
-                                {message.length}/400
-                            </span>
                         </div>
 
-                        <div className="mt-7">
-                            <span className="mb-3 block font-mono text-[11px] tracking-[0.2em] text-white/40">
+                        {/* Sectors selection */}
+                        <div className="mt-6">
+                            <label className="block font-mono text-[10px] tracking-[0.15em] text-white/40 uppercase mb-2">
                                 TARGET SECTORS
-                            </span>
+                            </label>
                             <div className="flex flex-wrap gap-2">
-                                {SECTORS.map((sector) => {
-                                    const active = selectedSectors.includes(sector);
+                                {SECTORS.map((sec) => {
+                                    const active = selectedSectors.includes(sec);
                                     return (
                                         <button
-                                            key={sector}
+                                            key={sec}
                                             type="button"
-                                            onClick={() => toggleSector(sector)}
-                                            className={`rounded-sm border px-3 py-1.5 font-mono text-[11px] tracking-[0.08em] transition-all ${active
-                                                ? "border-[#d80f0f] bg-[#d80f0f] text-white"
-                                                : "border-white/12 text-white/50 hover:border-white/30 hover:text-white"
+                                            onClick={() => toggleSector(sec)}
+                                            className={`rounded-sm border px-3 py-1.5 font-mono text-[10px] tracking-[0.1em] transition-all ${active
+                                                ? "border-red-500 bg-red-600/20 text-white"
+                                                : "border-white/10 bg-white/5 text-white/40 hover:text-white"
                                                 }`}
                                         >
-                                            {sector}
+                                            {sec}
                                         </button>
                                     );
                                 })}
                             </div>
                         </div>
 
-                        <div className="mt-7">
-                            <span className="mb-3 block font-mono text-[11px] tracking-[0.2em] text-white/40">
-                                PRIORITY LEVEL
-                            </span>
+                        {/* Priority selection */}
+                        <div className="mt-6">
+                            <label className="block font-mono text-[10px] tracking-[0.15em] text-white/40 uppercase mb-2">
+                                CLEARANCE PRIORITY
+                            </label>
                             <div className="flex gap-2">
                                 {PRIORITIES.map((p) => {
                                     const active = priority === p.id;

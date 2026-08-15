@@ -7,6 +7,8 @@ import { useGSAP } from "@gsap/react";
 import About from "@/components/about";
 import Navbar from "@/components/navbar";
 import FeatureTeasers from "@/components/FeatureTeasers";
+import ImperialCanvas from "@/components/ImperialCanvas";
+import TacticalOverlay from "@/components/TacticalOverlay";
 import { ScrollBasedVelocity } from "@/components/ui/scroll-based-velocity";
 
 export default function Home() {
@@ -115,11 +117,15 @@ export default function Home() {
         ref={containerRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative w-full h-screen flex items-start justify-center overflow-hidden bg-[#f41e16] bg-[url('/images/darth.png')] bg-cover bg-center bg-no-repeat"
+        className="relative w-full h-screen flex items-start justify-center overflow-hidden bg-[#f41e16] bg-[url('/darth.png')] bg-cover bg-center bg-no-repeat"
         id="home"
       >
+        {/* Ambient Canvas Particles & Tactical Scanline Overlay (non-intrusive background additions) */}
+        <ImperialCanvas />
+        <TacticalOverlay />
+
         {/* darkening layer so the floating navbar + text stay legible over the image */}
-        <div className="absolute inset-0 bg-black/25" aria-hidden="true" />
+        <div className="absolute inset-0 bg-black/25 pointer-events-none" aria-hidden="true" />
 
         <Navbar />
 
@@ -141,9 +147,9 @@ export default function Home() {
 
         {/* Bottom Left Serial & Intro Description */}
         <div className="absolute bottom-12 left-8 md:left-24 z-10 hidden sm:flex flex-col gap-2 font-mono text-xs text-white/70 max-w-xs">
-          <span className="font-bold tracking-widest text-white/90 text-sm">
+          {/* <span className="font-bold tracking-widest text-white/90 text-sm">
             AP - 25R3F
-          </span>
+          </span> */}
           <p className="font-sans text-xs text-white/75 leading-relaxed">
             An Imperial online network with dossiers, live Jedi tracking, and
             custom bounty features for galaxy-wide operations.
@@ -168,6 +174,12 @@ export default function Home() {
           <span className="heading-word inline-block">Mind</span>
         </h1>
       </div>
+
+      {/* Red Glowing Laser Divider Bar */}
+      <div className="relative h-1 w-full bg-gradient-to-r from-transparent via-red-600 to-transparent shadow-[0_0_15px_#ff3b30] overflow-hidden z-20">
+        <div className="absolute inset-0 bg-white/70 animate-laser-sweep" />
+      </div>
+
       <About />
       <div className="relative w-full overflow-hidden border-y border-red-950/60 bg-[#050505] py-4">
         <ScrollBasedVelocity

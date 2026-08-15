@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef } from "react";
-import Image from "next/image";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -63,7 +62,10 @@ export default function About() {
   return (
     <main className="briefing" ref={containerRef}>
       {/* ===== RED PANEL ===== */}
-      <section className="panel">
+      <section className="panel relative">
+        {/* Subtle Laser Scanline Addition (Does not change text position) */}
+        <div className="absolute inset-x-0 h-0.5 bg-white/30 animate-laser-sweep pointer-events-none z-10" />
+
         <div className="panel-body">
           <div className="panel-terminal">
             <p>INITIALIZING UPLINK&hellip;</p>
@@ -111,14 +113,14 @@ export default function About() {
       </section>
 
       <style>{`
-        /* Keep all your previous CSS exactly the same here */
         .briefing {
           background: #050505;
           color: #f5f5f5;
           font-family: "Helvetica Neue", Arial, sans-serif;
           min-height: 100vh;
           overflow-x: hidden;
-          width: 100vw;
+          width: 100%;
+          padding: 32px 24px 40px;
         }
 
         .meta-row {

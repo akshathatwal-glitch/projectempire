@@ -9,6 +9,9 @@ import {
     ShieldAlert,
     ChevronRight,
 } from "lucide-react";
+import { ScrollBasedVelocity } from "@/components/ui/scroll-based-velocity";
+import HunterCommendationsDemo from "@/components/hunter-commendations";
+import { ImperialSearch } from "@/components/imperial-search";
 
 /* ------------------------------------------------------------------ */
 /*  Static data                                                        */
@@ -697,3 +700,4 @@ export default function HolonetMap() {
         </section>
     );
 }
+
