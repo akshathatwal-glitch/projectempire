@@ -8,7 +8,10 @@ import {
     X,
     Menu,
     ChevronRight,
+    Loader2,
+    CheckCircle2,
 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { ScrollBasedVelocity } from "@/components/ui/scroll-based-velocity";
 import HunterCommendationsDemo from "@/components/hunter-commendations";
 import { ImperialSearch } from "@/components/imperial-search";
@@ -260,14 +263,16 @@ export default function BroadcastConsole() {
                             </h2>
 
                             <div className="mt-6 flex items-center gap-4">
-                                <button
+                                <motion.button
+                                    whileHover={{ scale: 1.03, y: -2 }}
+                                    whileTap={{ scale: 0.97 }}
                                     type="button"
                                     onClick={() => setComposeOpen(true)}
-                                    className="group inline-flex items-center gap-2 rounded-sm bg-white px-6 py-3 font-imperial text-lg tracking-wide text-[#050505] transition-all hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.4)]"
+                                    className="group inline-flex items-center gap-2 rounded-sm bg-white px-6 py-3 font-imperial text-lg tracking-wide text-[#050505] transition-all hover:bg-white/90 shadow-[0_0_25px_rgba(255,255,255,0.45)] cursor-pointer"
                                 >
                                     NEW TRANSMISSION
                                     <Send size={16} className="transition-transform group-hover:translate-x-1" />
-                                </button>
+                                </motion.button>
                             </div>
                         </div>
                     </div>
@@ -358,145 +363,184 @@ export default function BroadcastConsole() {
                 <HunterCommendationsDemo />
             </div>
 
-            {/* ---------------- Compose Modal ---------------- */}
-            {composeOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div
-                        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            {/* ---------------- Compose Modal (Enhanced Framer Motion Modal) ---------------- */}
+            <AnimatePresence>
+                {composeOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
                         onClick={() => !transmitting && setComposeOpen(false)}
-                    />
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md pointer-events-auto"
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -16 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -16 }}
+                            transition={{ type: "spring", damping: 26, stiffness: 340 }}
+                            className="relative w-full max-w-2xl rounded-sm border border-red-600/40 bg-[#0a0a0c] p-6 sm:p-8 shadow-[0_0_50px_rgba(216,15,15,0.35)] overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* HUD Brackets */}
+                            <span className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-red-500 z-10" />
+                            <span className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-red-500 z-10" />
+                            <span className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-red-500 z-10" />
+                            <span className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-red-500 z-10" />
 
-                    <div className="bc-modal-in relative w-full max-w-2xl rounded-sm border border-white/15 bg-[#0a0a0a] p-6 shadow-2xl sm:p-8">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                            <div className="flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] text-[#ff3b30]">
-                                <Radio size={14} className="bc-status-dot" />
-                                NEW IMPERIAL BROADCAST
+                            {/* Laser Accent Line */}
+                            <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent animate-laser-sweep" />
+
+                            {/* Header */}
+                            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                                <div className="flex items-center gap-2 font-mono text-[11px] font-bold tracking-[0.2em] text-red-500 uppercase">
+                                    <Radio size={14} className="animate-pulse" />
+                                    NEW IMPERIAL BROADCAST DIRECTIVE
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => !transmitting && setComposeOpen(false)}
+                                    disabled={transmitting}
+                                    className="text-white/40 hover:text-white transition cursor-pointer p-1 rounded hover:bg-white/10 disabled:opacity-30"
+                                >
+                                    <X size={18} />
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => !transmitting && setComposeOpen(false)}
-                                disabled={transmitting}
-                                className="text-white/40 hover:text-white disabled:opacity-30"
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
 
-                        {/* Templates */}
-                        <div className="mt-6">
-                            <label className="block font-mono text-[10px] tracking-[0.15em] text-white/40 uppercase mb-2">
-                                PRESET DIRECTIVES
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                                {TEMPLATES.map((t) => (
-                                    <button
-                                        key={t.label}
-                                        type="button"
-                                        onClick={() => applyTemplate(t.text)}
-                                        className="rounded-sm border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-[10px] tracking-[0.1em] text-white/70 hover:border-red-500/50 hover:text-white transition"
-                                    >
-                                        {t.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Message payload */}
-                        <div className="mt-6">
-                            <label className="block font-mono text-[10px] tracking-[0.15em] text-white/40 uppercase mb-2">
-                                TRANSMISSION PAYLOAD
-                            </label>
-                            <textarea
-                                value={message}
-                                onChange={(e) => setMessage(e.target.value)}
-                                disabled={transmitting}
-                                placeholder="ENTER BROADCAST TEXT..."
-                                rows={4}
-                                className="w-full rounded-sm border border-white/15 bg-black/60 p-3 font-mono text-xs tracking-wider text-white placeholder-white/30 outline-none focus:border-red-500/60"
-                            />
-                        </div>
-
-                        {/* Sectors selection */}
-                        <div className="mt-6">
-                            <label className="block font-mono text-[10px] tracking-[0.15em] text-white/40 uppercase mb-2">
-                                TARGET SECTORS
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                                {SECTORS.map((sec) => {
-                                    const active = selectedSectors.includes(sec);
-                                    return (
-                                        <button
-                                            key={sec}
+                            {/* Templates */}
+                            <div className="mt-6">
+                                <label className="block font-mono text-[10px] font-bold tracking-[0.15em] text-white/40 uppercase mb-2">
+                                    PRESET DIRECTIVES
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {TEMPLATES.map((t) => (
+                                        <motion.button
+                                            whileHover={{ scale: 1.03, y: -1 }}
+                                            whileTap={{ scale: 0.97 }}
+                                            key={t.label}
                                             type="button"
-                                            onClick={() => toggleSector(sec)}
-                                            className={`rounded-sm border px-3 py-1.5 font-mono text-[10px] tracking-[0.1em] transition-all ${active
-                                                ? "border-red-500 bg-red-600/20 text-white"
-                                                : "border-white/10 bg-white/5 text-white/40 hover:text-white"
-                                                }`}
+                                            onClick={() => applyTemplate(t.text)}
+                                            className="rounded-sm border border-white/12 bg-white/5 px-3 py-1.5 font-mono text-[10px] tracking-[0.1em] text-white/70 hover:border-red-500/60 hover:bg-red-950/30 hover:text-white transition cursor-pointer"
                                         >
-                                            {sec}
-                                        </button>
-                                    );
-                                })}
+                                            {t.label}
+                                        </motion.button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Priority selection */}
-                        <div className="mt-6">
-                            <label className="block font-mono text-[10px] tracking-[0.15em] text-white/40 uppercase mb-2">
-                                CLEARANCE PRIORITY
-                            </label>
-                            <div className="flex gap-2">
-                                {PRIORITIES.map((p) => {
-                                    const active = priority === p.id;
-                                    return (
-                                        <button
-                                            key={p.id}
-                                            type="button"
-                                            onClick={() => setPriority(p.id)}
-                                            className="flex items-center gap-2 rounded-sm border px-4 py-2 font-mono text-[11px] tracking-[0.1em] transition-all"
-                                            style={{
-                                                borderColor: active ? p.color : "rgba(255,255,255,0.12)",
-                                                color: active ? p.color : "rgba(255,255,255,0.5)",
-                                                background: active ? `${p.color}1a` : "transparent",
-                                            }}
-                                        >
-                                            <ShieldAlert size={13} />
-                                            {p.label}
-                                        </button>
-                                    );
-                                })}
+                            {/* Message payload */}
+                            <div className="mt-6">
+                                <label className="block font-mono text-[10px] font-bold tracking-[0.15em] text-white/40 uppercase mb-2">
+                                    TRANSMISSION PAYLOAD
+                                </label>
+                                <textarea
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    disabled={transmitting}
+                                    placeholder="ENTER BROADCAST TEXT..."
+                                    rows={4}
+                                    className="w-full rounded-sm border border-white/15 bg-black/70 p-3.5 font-mono text-xs tracking-wider text-white placeholder-white/30 outline-none focus:border-red-500/70 focus:shadow-[0_0_15px_rgba(216,15,15,0.3)] transition-all"
+                                />
                             </div>
-                        </div>
 
-                        {transmitting && (
-                            <div className="mt-6 space-y-1 rounded-sm border border-white/10 bg-black/40 p-4 font-mono text-[11px] tracking-[0.1em] text-white/70">
-                                {logLines.map((line, i) => (
-                                    <div key={i} className="flex items-center gap-2">
-                                        <ChevronRight size={11} className="shrink-0" />
-                                        {line}
-                                    </div>
-                                ))}
+                            {/* Sectors selection */}
+                            <div className="mt-6">
+                                <label className="block font-mono text-[10px] font-bold tracking-[0.15em] text-white/40 uppercase mb-2">
+                                    TARGET SECTORS
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {SECTORS.map((sec) => {
+                                        const active = selectedSectors.includes(sec);
+                                        return (
+                                            <motion.button
+                                                whileHover={{ scale: 1.03 }}
+                                                whileTap={{ scale: 0.97 }}
+                                                key={sec}
+                                                type="button"
+                                                onClick={() => toggleSector(sec)}
+                                                className={`rounded-sm border px-3 py-1.5 font-mono text-[10px] font-bold tracking-[0.1em] transition-all cursor-pointer ${active
+                                                    ? "border-red-500 bg-red-600/30 text-white shadow-[0_0_12px_rgba(255,59,48,0.4)]"
+                                                    : "border-white/10 bg-white/5 text-white/40 hover:text-white"
+                                                    }`}
+                                            >
+                                                {sec}
+                                            </motion.button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        )}
 
-                        <div className="mt-8 flex flex-col items-start justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center">
-                            <div className="min-h-[16px] font-mono text-[11px] tracking-[0.1em] text-[#ff5c4d]">
-                                {error}
+                            {/* Priority selection */}
+                            <div className="mt-6">
+                                <label className="block font-mono text-[10px] font-bold tracking-[0.15em] text-white/40 uppercase mb-2">
+                                    CLEARANCE PRIORITY
+                                </label>
+                                <div className="flex gap-2">
+                                    {PRIORITIES.map((p) => {
+                                        const active = priority === p.id;
+                                        return (
+                                            <motion.button
+                                                whileHover={{ scale: 1.03 }}
+                                                whileTap={{ scale: 0.97 }}
+                                                key={p.id}
+                                                type="button"
+                                                onClick={() => setPriority(p.id)}
+                                                className="flex items-center gap-2 rounded-sm border px-4 py-2 font-mono text-[11px] font-bold tracking-[0.1em] transition-all cursor-pointer"
+                                                style={{
+                                                    borderColor: active ? p.color : "rgba(255,255,255,0.12)",
+                                                    color: active ? p.color : "rgba(255,255,255,0.5)",
+                                                    background: active ? `${p.color}25` : "transparent",
+                                                    boxShadow: active ? `0 0 14px ${p.color}40` : "none",
+                                                }}
+                                            >
+                                                <ShieldAlert size={13} />
+                                                {p.label}
+                                            </motion.button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                            <button
-                                type="button"
-                                onClick={handleTransmit}
-                                disabled={transmitting}
-                                className="group inline-flex items-center gap-2 rounded-sm bg-[#d80f0f] px-6 py-3 font-imperial text-lg tracking-wide text-white transition-all hover:bg-[#ff3b30] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                {transmitting ? "TRANSMITTING..." : "TRANSMIT"}
-                                <Send size={16} className="transition-transform group-hover:translate-x-1" />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+
+                            {transmitting && (
+                                <div className="mt-6 space-y-1.5 rounded-sm border border-red-500/30 bg-black/60 p-4 font-mono text-[11px] tracking-[0.1em] text-white/80">
+                                    {logLines.map((line, i) => (
+                                        <div key={i} className="flex items-center gap-2">
+                                            <ChevronRight size={11} className="shrink-0 text-red-500" />
+                                            <span>{line}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="mt-8 flex flex-col items-start justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center">
+                                <div className="min-h-[16px] font-mono text-[11px] tracking-[0.1em] text-[#ff5c4d]">
+                                    {error}
+                                </div>
+                                <motion.button
+                                    whileHover={{ scale: 1.03, y: -2 }}
+                                    whileTap={{ scale: 0.97 }}
+                                    type="button"
+                                    onClick={handleTransmit}
+                                    disabled={transmitting}
+                                    className="group inline-flex items-center gap-2 rounded-sm bg-[#d80f0f] px-6 py-3 font-imperial text-lg tracking-wide text-white transition-all hover:bg-[#ff3b30] shadow-[0_0_20px_rgba(216,15,15,0.7)] hover:shadow-[0_0_30px_rgba(255,59,48,0.9)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                                >
+                                    {transmitting ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin" />
+                                            TRANSMITTING...
+                                        </>
+                                    ) : (
+                                        <>
+                                            TRANSMIT
+                                            <Send size={16} className="transition-transform group-hover:translate-x-1" />
+                                        </>
+                                    )}
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </section>
     );
 }
