@@ -14,7 +14,7 @@
  */
 
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { motion, LayoutGroup } from 'motion/react';
+import { motion, LayoutGroup, AnimatePresence } from 'motion/react';
 import { ImperialSearch } from '@/components/imperial-search';
 import {
     DraggableCardBody,
@@ -30,7 +30,8 @@ import {
     ChevronRight,
     ScanLine,
     CircleSlash,
-    Menu, Skull, Crosshair, Radiation
+    Menu, Skull, Crosshair, Radiation,
+    Copy, Check, Zap, Terminal, Lock, Unlock, FileText
 } from 'lucide-react';
 import Navbar from '@/components/navbar';
 
@@ -421,22 +422,32 @@ function DossierDragCard({
 
                 {/* open — green "access granted" terminal action, animated */}
                 <div className="relative z-10 shrink-0 px-4 pb-2">
-                    <button
+                    <motion.button
                         type="button"
+                        whileHover={{ scale: 1.025 }}
+                        whileTap={{ scale: 0.95 }}
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => {
                             e.stopPropagation();
                             onOpen(file);
                         }}
-                        className="group/btn relative flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-sm border border-emerald-500/50 bg-emerald-500/10 px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-500 hover:text-black hover:shadow-[0_0_22px_-4px_rgba(16,185,129,0.85)] active:scale-[0.94]"
+                        className="group/btn relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-sm border border-emerald-500/60 bg-emerald-500/10 px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-500 hover:text-black hover:shadow-[0_0_25px_-2px_rgba(16,185,129,0.9)]"
                     >
-                        {/* shimmer sweep on hover */}
-                        <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 ease-out group-hover/btn:translate-x-full" />
-                        <span className="relative flex items-center gap-1.5">
+                        {/* Continuous subtle shimmer sweep */}
+                        <motion.span
+                            className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/35 to-transparent"
+                            animate={{ translateX: ['-100%', '200%'] }}
+                            transition={{ repeat: Infinity, repeatDelay: 2.5, duration: 1.3, ease: 'easeInOut' }}
+                        />
+                        <span className="relative flex items-center gap-2">
+                            <span className="relative flex h-2 w-2">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 group-hover/btn:bg-black" />
+                                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 group-hover/btn:bg-black" />
+                            </span>
                             Open File
-                            <ChevronRight className="h-3 w-3 transition-transform duration-200 group-hover/btn:translate-x-1.5" />
+                            <ChevronRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover/btn:translate-x-1.5" />
                         </span>
-                    </button>
+                    </motion.button>
                 </div>
 
                 {/* metadata footer — sector, affiliation, threat */}
@@ -510,8 +521,14 @@ function generateScatterPositions(dossiers: Dossier[], randomize: boolean): Reac
 // DETAIL PANEL
 // ————————————————————————————————————————————————————————————
 
+type ModalTab = 'OVERVIEW' | 'FIELD_LOGS' | 'DIRECTIVES';
+
 function DossierDetail({ file, onClose }: { file: Dossier; onClose: () => void }) {
     const closeRef = useRef<HTMLButtonElement>(null);
+    const [tab, setTab] = useState<ModalTab>('OVERVIEW');
+    const [copied, setCopied] = useState(false);
+    const [unredacted, setUnredacted] = useState(false);
+    const [directiveStatus, setDirectiveStatus] = useState<string | null>(null);
 
     useEffect(() => {
         closeRef.current?.focus();
@@ -520,98 +537,366 @@ function DossierDetail({ file, onClose }: { file: Dossier; onClose: () => void }
         return () => window.removeEventListener('keydown', onKey);
     }, [onClose]);
 
+    const handleCopyId = () => {
+        navigator.clipboard.writeText(file.id);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const triggerDirective = (actionName: string) => {
+        setDirectiveStatus(`EXECUTING ${actionName}...`);
+        setTimeout(() => {
+            setDirectiveStatus(`DIRECTIVE "${actionName}" TRANSMITTED TO ISB NET`);
+            setTimeout(() => setDirectiveStatus(null), 3500);
+        }, 600);
+    };
+
+    const displayName = unredacted
+        ? file.realName.replace(/█+/g, 'aelen')
+        : file.realName;
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-            <div
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6"
+        >
+            {/* Backdrop */}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/85 backdrop-blur-md"
+                onClick={onClose}
+                aria-hidden="true"
+            />
+
+            {/* Dialog Card */}
+            <motion.div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="dossier-title"
-                className="db-modal-in relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-sm border border-[#d80f0f]/30 bg-[#0a0a0a] shadow-[0_0_60px_rgba(216,15,15,0.15)]"
+                initial={{ opacity: 0, scale: 0.9, y: 30, rotateX: 6 }}
+                animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 20, rotateX: -6 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-md border border-[#d80f0f]/40 bg-[#09090b] shadow-[0_0_80px_rgba(216,15,15,0.25),0_25px_60px_rgba(0,0,0,0.95)]"
             >
-                <div className="flex items-center justify-between border-b border-white/10 bg-[#111112] px-5 py-3">
-                    <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-[#d80f0f]">
-                        <ShieldAlert className="h-3.5 w-3.5" />
-                        Imperial Security Bureau — Classified File {file.id}
+                {/* Holographic sweep beam */}
+                <motion.div
+                    initial={{ translateX: '-100%' }}
+                    animate={{ translateX: '100%' }}
+                    transition={{ duration: 1.4, ease: 'easeInOut' }}
+                    className="pointer-events-none absolute top-0 z-30 h-[2px] w-full bg-gradient-to-r from-transparent via-[#d80f0f] to-transparent"
+                />
+
+                {/* Header bar */}
+                <div className="flex items-center justify-between border-b border-white/10 bg-[#111114] px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-sm border border-[#d80f0f]/50 bg-[#d80f0f]/10 text-[#d80f0f]">
+                            <ShieldAlert className="h-4 w-4 animate-pulse" />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-[#d80f0f]">
+                                    ISB CLASSIFIED ARCHIVE
+                                </span>
+                                <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[8px] tracking-wider text-white/60">
+                                    CLEARANCE 5
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 font-mono text-xs text-white/60">
+                                <span>FILE #{file.id}</span>
+                                <button
+                                    type="button"
+                                    onClick={handleCopyId}
+                                    className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                                >
+                                    {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                                    {copied ? 'COPIED' : 'COPY'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
+
                     <button
                         ref={closeRef}
                         onClick={onClose}
                         aria-label="Close dossier"
-                        className="rounded-sm p-2 text-white/50 outline-none transition-colors hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-[#d80f0f]"
+                        className="group rounded-sm p-2 text-white/50 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-[#d80f0f]"
                     >
-                        <X className="h-4 w-4" />
+                        <X className="h-5 w-5 transition-transform duration-200 group-hover:rotate-90" />
                     </button>
                 </div>
 
-                <div className="overflow-y-auto p-6">
+                {/* Hero Banner Section */}
+                <div className="relative border-b border-white/10 bg-gradient-to-r from-[#160404] via-[#09090b] to-[#09090b] px-6 py-5">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <p className="font-mono text-[11px] tracking-widest text-white/40">{file.realName}</p>
-                            <h2 id="dossier-title" className="font-imperial mt-1 text-4xl tracking-wide text-white">
+                            <div className="flex items-center gap-2">
+                                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#d80f0f]">
+                                    TARGET CODENAME
+                                </span>
+                                {file.realName.includes('█') && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setUnredacted(!unredacted)}
+                                        className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-amber-400/80 transition-colors hover:text-amber-300"
+                                    >
+                                        {unredacted ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                                        {unredacted ? 'ENCRYPT' : 'UN-REDACT'}
+                                    </button>
+                                )}
+                            </div>
+                            <h2 id="dossier-title" className="font-imperial mt-1 text-4xl tracking-wide text-white sm:text-5xl">
                                 {file.codename}
                             </h2>
+                            <p className="mt-1 font-mono text-xs tracking-widest text-white/50">
+                                IDENTITY: <span className={unredacted ? 'text-amber-300 font-bold' : ''}>{displayName}</span>
+                            </p>
                         </div>
-                        <div className="flex flex-col items-end gap-2">
+
+                        <div className="flex flex-col items-end gap-2.5">
                             <StatusBadge status={file.status} />
                             <ThreatMeter level={file.threat} size="lg" />
+                            <span className="font-mono text-[10px] tracking-wider text-amber-400">
+                                BOUNTY: {file.bounty}
+                            </span>
                         </div>
                     </div>
 
-                    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                        <InfoBlock icon={<Fingerprint className="h-3.5 w-3.5" />} label="Species" value={file.species} />
-                        <InfoBlock icon={<Users className="h-3.5 w-3.5" />} label="Affiliation" value={file.affiliation} />
-                        <InfoBlock icon={<Radio className="h-3.5 w-3.5" />} label="Last Signal" value={file.lastSeen} />
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <InfoBlock icon={<MapPin className="h-3.5 w-3.5" />} label="Last Known Position" value={file.sector} />
-                        <InfoBlock icon={<ScanLine className="h-3.5 w-3.5" />} label="Bounty Status" value={file.bounty} />
-                    </div>
-
-                    <div className="mt-6 border-t border-white/10 pt-5">
-                        <h4 className="font-mono text-[10px] uppercase tracking-[0.25em] text-[#d80f0f]">Summary</h4>
-                        <p className="mt-2 text-sm leading-relaxed text-white/70">{file.brief}</p>
-                    </div>
-
-                    <div className="mt-5">
-                        <h4 className="font-mono text-[10px] uppercase tracking-[0.25em] text-[#d80f0f]">Field Log</h4>
-                        <p className="mt-2 text-sm leading-relaxed text-white/60">{file.history}</p>
-                    </div>
-
-                    <div className="mt-5">
-                        <h4 className="font-mono text-[10px] uppercase tracking-[0.25em] text-[#d80f0f]">
-                            Known Associates
-                        </h4>
-                        {file.associates.length ? (
-                            <ul className="mt-2 space-y-1">
-                                {file.associates.map((a) => (
-                                    <li key={a} className="flex items-center gap-2 text-sm text-white/60">
-                                        <span className="h-1 w-1 rounded-full bg-[#d80f0f]" />
-                                        {a}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="mt-2 flex items-center gap-2 text-sm text-white/30">
-                                <CircleSlash className="h-3.5 w-3.5" /> None on record
-                            </p>
-                        )}
+                    {/* Tab Selection */}
+                    <div className="mt-6 flex border-b border-white/10">
+                        {(['OVERVIEW', 'FIELD_LOGS', 'DIRECTIVES'] as ModalTab[]).map((t) => {
+                            const isActive = tab === t;
+                            const label =
+                                t === 'OVERVIEW'
+                                    ? 'OVERVIEW & METRICS'
+                                    : t === 'FIELD_LOGS'
+                                    ? 'FIELD INTEL LOGS'
+                                    : 'ISB DIRECTIVES';
+                            return (
+                                <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => setTab(t)}
+                                    className="relative px-4 py-2 font-mono text-[11px] font-medium tracking-[0.15em] transition-colors"
+                                    style={{ color: isActive ? '#ffffff' : 'rgba(255,255,255,0.45)' }}
+                                >
+                                    {isActive && (
+                                        <motion.span
+                                            layoutId="dossier-modal-tab"
+                                            className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#d80f0f]"
+                                            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                                        />
+                                    )}
+                                    {label}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
-            </div>
-        </div>
+
+                {/* Directive Toast notification */}
+                <AnimatePresence>
+                    {directiveStatus && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="bg-[#d80f0f]/20 px-6 py-2 border-b border-[#d80f0f]/40 font-mono text-xs text-amber-300 flex items-center gap-2"
+                        >
+                            <Zap className="h-3.5 w-3.5 animate-spin text-amber-400" />
+                            {directiveStatus}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Tab Body Content */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {tab === 'OVERVIEW' && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="space-y-6"
+                        >
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                <InfoBlock icon={<Fingerprint className="h-4 w-4" />} label="Species" value={file.species} />
+                                <InfoBlock icon={<Users className="h-4 w-4" />} label="Affiliation" value={file.affiliation} />
+                                <InfoBlock icon={<Radio className="h-4 w-4" />} label="Last Signal Ping" value={file.lastSeen} />
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <InfoBlock icon={<MapPin className="h-4 w-4" />} label="Last Known Position" value={file.sector} />
+                                <InfoBlock icon={<ScanLine className="h-4 w-4" />} label="Bounty Status" value={file.bounty} />
+                            </div>
+
+                            <div className="rounded-sm border border-white/10 bg-black/40 p-4">
+                                <h4 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-[#d80f0f]">
+                                    <FileText className="h-3.5 w-3.5" /> Executive Summary
+                                </h4>
+                                <p className="mt-2 text-sm leading-relaxed text-white/80">{file.brief}</p>
+                            </div>
+
+                            <div className="rounded-sm border border-white/10 bg-black/40 p-4">
+                                <h4 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-[#d80f0f]">
+                                    <Users className="h-3.5 w-3.5" /> Confirmed Associates
+                                </h4>
+                                {file.associates.length ? (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {file.associates.map((a) => (
+                                            <span
+                                                key={a}
+                                                className="inline-flex items-center gap-2 rounded-sm border border-white/10 bg-white/5 px-3 py-1 font-mono text-xs text-white/80"
+                                            >
+                                                <span className="h-1.5 w-1.5 rounded-full bg-[#d80f0f]" />
+                                                {a}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="mt-2 flex items-center gap-2 text-sm text-white/30">
+                                        <CircleSlash className="h-4 w-4" /> None on record
+                                    </p>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {tab === 'FIELD_LOGS' && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="space-y-4"
+                        >
+                            <div className="rounded-sm border border-white/10 bg-[#050507] p-4 font-mono text-xs">
+                                <div className="flex items-center justify-between border-b border-white/10 pb-2 text-white/40">
+                                    <span className="flex items-center gap-2 text-[#d80f0f]">
+                                        <Terminal className="h-4 w-4" /> SURVEILLANCE_LOG_STREAM
+                                    </span>
+                                    <span>TIMESTAMP: {file.lastSeen}</span>
+                                </div>
+                                <p className="mt-4 leading-relaxed text-emerald-400/90 whitespace-pre-line font-mono text-sm">
+                                    {file.history}
+                                </p>
+                            </div>
+
+                            <div className="rounded-sm border border-amber-500/20 bg-amber-500/5 p-4">
+                                <div className="flex items-center gap-2 text-amber-400 font-mono text-xs uppercase tracking-wider font-bold">
+                                    <ShieldAlert className="h-4 w-4" /> Tactical Note
+                                </div>
+                                <p className="mt-1.5 text-xs leading-relaxed text-amber-200/70">
+                                    Target exhibits high evasive capability. Any inquisitorial forces engaging this individual must maintain full perimeter lockdown.
+                                </p>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {tab === 'DIRECTIVES' && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="space-y-4"
+                        >
+                            <p className="font-mono text-xs tracking-wider text-white/60">
+                                AUTHORIZED IMPERIAL ACTIONS FOR CASE FILE <span className="text-white font-bold">{file.id}</span>:
+                            </p>
+
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.96 }}
+                                    type="button"
+                                    onClick={() => triggerDirective('MARK FOR PRIORITY PURSUIT')}
+                                    className="group flex items-center gap-3 rounded-sm border border-[#d80f0f]/60 bg-[#d80f0f]/15 p-3.5 text-left font-mono transition-all duration-200 hover:border-[#d80f0f] hover:bg-[#d80f0f] hover:text-white hover:shadow-[0_0_25px_rgba(216,15,15,0.5)]"
+                                >
+                                    <Crosshair className="h-5 w-5 shrink-0 text-[#d80f0f] transition-colors group-hover:text-white" />
+                                    <div>
+                                        <div className="text-xs font-bold uppercase tracking-wider text-white">Mark Priority Pursuit</div>
+                                        <div className="text-[10px] text-white/50 group-hover:text-white/80">Dispatch ISB hunter squadron</div>
+                                    </div>
+                                </motion.button>
+
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.96 }}
+                                    type="button"
+                                    onClick={() => triggerDirective('ISSUE SECTOR BOUNTY BULLETIN')}
+                                    className="group flex items-center gap-3 rounded-sm border border-amber-500/50 bg-amber-500/10 p-3.5 text-left font-mono transition-all duration-200 hover:border-amber-400 hover:bg-amber-500 hover:text-black hover:shadow-[0_0_25px_rgba(245,158,11,0.5)]"
+                                >
+                                    <ScanLine className="h-5 w-5 shrink-0 text-amber-400 transition-colors group-hover:text-black" />
+                                    <div>
+                                        <div className="text-xs font-bold uppercase tracking-wider text-amber-300 group-hover:text-black">Broadcast Bounty</div>
+                                        <div className="text-[10px] text-white/50 group-hover:text-black/80">Transmit to HoloNet hunters</div>
+                                    </div>
+                                </motion.button>
+
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.96 }}
+                                    type="button"
+                                    onClick={() => triggerDirective('REQUEST PROBE DRONE DEPLOYMENT')}
+                                    className="group flex items-center gap-3 rounded-sm border border-emerald-500/50 bg-emerald-500/10 p-3.5 text-left font-mono transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-500 hover:text-black hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]"
+                                >
+                                    <Radio className="h-5 w-5 shrink-0 text-emerald-400 transition-colors group-hover:text-black" />
+                                    <div>
+                                        <div className="text-xs font-bold uppercase tracking-wider text-emerald-300 group-hover:text-black">Deploy Probe Drones</div>
+                                        <div className="text-[10px] text-white/50 group-hover:text-black/80">Scan sector {file.sector}</div>
+                                    </div>
+                                </motion.button>
+
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.96 }}
+                                    type="button"
+                                    onClick={() => triggerDirective('GENERATE CLASSIFIED REPORT')}
+                                    className="group flex items-center gap-3 rounded-sm border border-white/20 bg-white/5 p-3.5 text-left font-mono transition-all duration-200 hover:border-white hover:bg-white hover:text-black hover:shadow-[0_0_25px_rgba(255,255,255,0.3)]"
+                                >
+                                    <Terminal className="h-5 w-5 shrink-0 text-white/70 transition-colors group-hover:text-black" />
+                                    <div>
+                                        <div className="text-xs font-bold uppercase tracking-wider text-white/90 group-hover:text-black">Export Case Log</div>
+                                        <div className="text-[10px] text-white/50 group-hover:text-black/80">Download encrypted file</div>
+                                    </div>
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    )}
+                </div>
+
+                {/* Footer action bar */}
+                <div className="flex items-center justify-between border-t border-white/10 bg-[#111114] px-6 py-3.5">
+                    <span className="font-mono text-[10px] tracking-widest text-white/30">
+                        SECURE TERMINAL NODE 09-ISB
+                    </span>
+
+                    <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.95 }}
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-sm border border-white/20 bg-white/10 px-5 py-1.5 font-mono text-xs font-bold uppercase tracking-widest text-white transition-colors hover:border-white hover:bg-white hover:text-black"
+                    >
+                        Close File
+                    </motion.button>
+                </div>
+            </motion.div>
+        </motion.div>
     );
 }
 
 function InfoBlock({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
     return (
-        <div className="rounded-sm border border-white/5 bg-black/30 p-3">
-            <div className="flex items-center gap-1.5 text-[#d80f0f]/80">
+        <div className="rounded-sm border border-white/10 bg-black/40 p-3.5 transition-colors hover:border-[#d80f0f]/40">
+            <div className="flex items-center gap-2 text-[#d80f0f]">
                 {icon}
-                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/30">{label}</span>
+                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/40">{label}</span>
             </div>
-            <p className="mt-1 truncate text-sm text-white/80">{value}</p>
+            <p className="mt-1.5 font-mono text-xs text-white/90 truncate">{value}</p>
         </div>
     );
 }
@@ -716,19 +1001,22 @@ export default function DossiersPage() {
                 </div>
             </div>
 
-            {/* ---------------- Red console panel ---------------- */}
+            {/* ---------------- ISB Console panel ---------------- */}
             <div className="mx-auto max-w-6xl px-6 pb-10 pt-16 sm:px-10">
-                <div className="relative overflow-hidden rounded-sm border border-white/15 bg-[#b5130e] [background-image:radial-gradient(ellipse_90%_70%_at_25%_0%,rgba(255,255,255,0.14),transparent_60%)]">
-                    <div className="flex items-center justify-between border-b border-white/15 px-6 py-4">
+                <div className="relative overflow-hidden rounded-sm border border-[#d80f0f]/40 bg-gradient-to-r from-[#180303] via-[#0b0304] to-[#180303] shadow-[0_0_60px_rgba(216,15,15,0.2)]">
+                    {/* Top ambient glow line */}
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d80f0f] to-transparent opacity-80" />
+
+                    <div className="flex items-center justify-between border-b border-white/10 bg-black/40 px-6 py-4">
                         <div className="flex items-center gap-4">
                             <ImperialSearch value={query} onValueChange={setQuery} />
-                            <Menu size={16} className="text-white/70" />
+                            <Menu size={16} className="text-white/60" />
                         </div>
-                        <span className="font-imperial text-lg tracking-wide">DOSSIER NET</span>
-                        <span className="flex items-center gap-2 font-mono text-[11px] tracking-[0.15em] text-white/85">
+                        <span className="font-imperial text-lg tracking-wide text-white">DOSSIER NET</span>
+                        <span className="flex items-center gap-2 font-mono text-[11px] tracking-[0.15em] text-[#d80f0f]">
                             <span className="relative flex h-2 w-2">
-                                <span className="absolute inline-flex h-full w-full rounded-full bg-white db-ring" />
-                                <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                                <span className="absolute inline-flex h-full w-full rounded-full bg-[#d80f0f] db-ring" />
+                                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#d80f0f]" />
                             </span>
                             {activeCount} ACTIVE
                         </span>
@@ -736,23 +1024,23 @@ export default function DossiersPage() {
 
                     <div className="grid grid-cols-1 gap-8 px-6 py-10 sm:px-10 md:grid-cols-[auto_1fr]">
                         <div className="hidden items-center justify-center md:flex">
-                            <span className="font-imperial -rotate-90 whitespace-nowrap text-xs tracking-[0.4em] text-white/70">
+                            <span className="font-imperial -rotate-90 whitespace-nowrap text-xs tracking-[0.4em] text-[#d80f0f]/80">
                                 ISB SURVEILLANCE ARCHIVE
                             </span>
                         </div>
 
                         <div>
-                            <div className="mb-6 min-h-[20px] font-mono text-[11px] tracking-[0.1em] text-white/70">
+                            <div className="mb-4 min-h-[20px] font-mono text-[11px] tracking-[0.15em] text-[#d80f0f]">
                                 Cross-referencing case files... Sorting by threat...
                             </div>
 
-                            <h2 className="font-imperial text-[36px] leading-[0.95] sm:text-[52px]">
-                                NO FILE <span className="text-white/60">STAYS</span>
+                            <h2 className="font-imperial text-[36px] leading-[0.95] text-white sm:text-[52px]">
+                                NO FILE <span className="text-[#d80f0f]">STAYS</span>
                                 <br />
                                 CLOSED
                             </h2>
 
-                            <p className="mt-5 max-w-md text-sm leading-relaxed text-white/85">
+                            <p className="mt-4 max-w-md font-mono text-xs leading-relaxed text-white/60">
                                 Search by codename, sector, or affiliation. Drag a file to
                                 the side, or open it for full field intelligence.
                             </p>
@@ -826,7 +1114,9 @@ export default function DossiersPage() {
                 </div>
             </div>
 
-            {active && <DossierDetail file={active} onClose={() => setActive(null)} />}
+            <AnimatePresence>
+                {active && <DossierDetail file={active} onClose={() => setActive(null)} />}
+            </AnimatePresence>
         </main>
     );
 }
