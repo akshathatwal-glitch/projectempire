@@ -323,20 +323,19 @@ function ThreatMeter({
 // compact card and long ones (LOOSE THREAD) get room to breathe.
 function codenameCardWidth(name: string) {
     const len = name.length;
-    if (len <= 6) return 9.5; // rem
-    if (len <= 8) return 10.5;
-    if (len <= 10) return 12;
-    if (len <= 13) return 13.5;
-    return 15.5;
+    if (len <= 6) return 16.5; // rem (~264px)
+    if (len <= 8) return 17.5; // (~280px)
+    if (len <= 10) return 18.5; // (~296px)
+    if (len <= 13) return 19.5; // (~312px)
+    return 20.5; // (~328px)
 }
 
-// Font size still adjusts a little within that width, but does much less
-// work than before now that the card itself can grow.
 function codenameFontSize(name: string) {
     const len = name.length;
-    if (len <= 8) return 'text-[36px]';
-    if (len <= 12) return 'text-[28px]';
-    return 'text-[24px]';
+    if (len <= 7) return 'text-[28px] sm:text-[30px]';
+    if (len <= 10) return 'text-[24px] sm:text-[26px]';
+    if (len <= 12) return 'text-[21px] sm:text-[23px]';
+    return 'text-[19px] sm:text-[20px]';
 }
 
 function bgIcon(status: Status) {
@@ -367,18 +366,18 @@ function DossierDragCard({
     return (
         <DraggableCardBody
             style={position}
-            className="group min-h-0 overflow-hidden rounded-sm border border-white/10 bg-[#0a0a0a] p-0 shadow-[0_16px_40px_-15px_rgba(0,0,0,0.85)] hover:border-[#d80f0f]/50"
+            className="group h-[280px] min-h-0 overflow-hidden rounded-sm border border-white/12 bg-[#0c0c0e] p-0 shadow-[0_16px_40px_-15px_rgba(0,0,0,0.85)] hover:border-[#d80f0f]/60 hover:shadow-[0_20px_50px_-10px_rgba(216,15,15,0.2)]"
         >
-            <div className="absolute inset-0 flex flex-col">
+            <div className="absolute inset-0 flex flex-col justify-between">
                 {/* icon watermark — sits behind everything, drifts + brightens on hover/drag */}
                 <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
                     <BgIcon
-                        className="absolute -bottom-5 -right-5 h-24 w-24 text-[#d80f0f] opacity-[0.08] transition-all duration-300 ease-out group-hover:opacity-[0.16] group-hover:-rotate-6 group-active:opacity-[0.22]"
+                        className="absolute -bottom-6 -right-6 h-28 w-28 text-[#d80f0f] opacity-[0.08] transition-all duration-300 ease-out group-hover:opacity-[0.18] group-hover:-rotate-6 group-active:opacity-[0.24]"
                         strokeWidth={1}
                         style={{ rotate: '-8deg' }}
                     />
                     <BgIcon
-                        className="absolute -left-3 -top-3 h-12 w-12 text-white opacity-[0.04] transition-all duration-300 ease-out group-hover:opacity-[0.09]"
+                        className="absolute -left-4 -top-4 h-14 w-14 text-white opacity-[0.04] transition-all duration-300 ease-out group-hover:opacity-[0.09]"
                         strokeWidth={1}
                         style={{ rotate: '12deg' }}
                     />
@@ -394,31 +393,34 @@ function DossierDragCard({
                 />
 
                 {/* top strip — id left, status right */}
-                <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-white/10 bg-black/50 px-2.5 py-1">
-                    <span className="font-mono text-[7px] tracking-[0.2em] text-white/30">{file.id}</span>
-                    <span className={`flex items-center gap-1 font-mono text-[7px] tracking-[0.18em] ${c.text}`}>
-                        <span className={`h-1 w-1 rounded-full ${c.dot} ${file.status === 'ACTIVE' ? 'animate-pulse' : ''}`} />
+                <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-white/10 bg-black/60 px-3.5 py-2">
+                    <span className="font-mono text-[9px] tracking-[0.2em] text-white/40">{file.id}</span>
+                    <span className={`flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] ${c.text}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${c.dot} ${file.status === 'ACTIVE' ? 'animate-pulse' : ''}`} />
                         {file.status}
                     </span>
                 </div>
 
-                {/* codename — width of the card already fits it, font just tunes the fill */}
-                <div className="relative z-10 flex flex-1 flex-col justify-center px-3 py-1.5">
-                    <span className="mb-1 block h-[2px] w-7 bg-[#d80f0f]" />
+                {/* codename — single line, full breathing room */}
+                <div className="relative z-10 flex flex-1 flex-col justify-center px-4 py-2">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="h-[2px] w-6 bg-[#d80f0f]" />
+                        <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-[#d80f0f]/80">TARGET FILE</span>
+                    </div>
                     <h3
-                        className={`font-imperial select-none break-words leading-[0.9] tracking-wide text-white ${codenameFontSize(
+                        className={`font-imperial select-none whitespace-nowrap leading-none tracking-wide text-white ${codenameFontSize(
                             file.codename,
                         )}`}
                     >
                         {file.codename}
                     </h3>
-                    <p className="mt-0.5 truncate font-mono text-[8px] uppercase tracking-[0.15em] text-white/30">
+                    <p className="mt-1.5 truncate font-mono text-[9px] uppercase tracking-[0.15em] text-white/40">
                         {file.realName}
                     </p>
                 </div>
 
                 {/* open — green "access granted" terminal action, animated */}
-                <div className="relative z-10 shrink-0 px-3 pb-1.5">
+                <div className="relative z-10 shrink-0 px-4 pb-2">
                     <button
                         type="button"
                         onPointerDown={(e) => e.stopPropagation()}
@@ -426,9 +428,9 @@ function DossierDragCard({
                             e.stopPropagation();
                             onOpen(file);
                         }}
-                        className="group/btn relative flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-sm border border-emerald-500/50 bg-emerald-500/10 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-500 hover:text-black hover:shadow-[0_0_22px_-4px_rgba(16,185,129,0.85)] active:scale-[0.94]"
+                        className="group/btn relative flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-sm border border-emerald-500/50 bg-emerald-500/10 px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-500 hover:text-black hover:shadow-[0_0_22px_-4px_rgba(16,185,129,0.85)] active:scale-[0.94]"
                     >
-                        {/* shimmer sweep on hover, same language as the status chips elsewhere in the file */}
+                        {/* shimmer sweep on hover */}
                         <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 ease-out group-hover/btn:translate-x-full" />
                         <span className="relative flex items-center gap-1.5">
                             Open File
@@ -437,18 +439,20 @@ function DossierDragCard({
                     </button>
                 </div>
 
-                {/* everything else — small, quiet, last */}
-                <div className="relative z-10 shrink-0 space-y-0.5 border-t border-white/10 px-3 py-1.5 text-white/40">
-                    <div className="flex items-center gap-1.5">
-                        <MapPin className="h-2 w-2 shrink-0 text-[#d80f0f]/60" />
-                        <span className="truncate font-mono text-[8px] tracking-[0.02em]">{file.sector}</span>
+                {/* metadata footer — sector, affiliation, threat */}
+                <div className="relative z-10 shrink-0 space-y-1.5 border-t border-white/10 bg-black/40 px-4 py-2.5 text-white/50">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 overflow-hidden">
+                            <MapPin className="h-3 w-3 shrink-0 text-[#d80f0f]" />
+                            <span className="truncate font-mono text-[9px] tracking-[0.02em]">{file.sector}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 overflow-hidden shrink-0">
+                            <Users className="h-3 w-3 shrink-0 text-[#d80f0f]" />
+                            <span className="truncate font-mono text-[9px] tracking-[0.02em] max-w-[120px]">{file.affiliation}</span>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                        <Users className="h-2 w-2 shrink-0 text-[#d80f0f]/60" />
-                        <span className="truncate font-mono text-[8px] tracking-[0.02em]">{file.affiliation}</span>
-                    </div>
-                    <div className="flex items-center justify-between pt-0.5">
-                        <span className="font-mono text-[7px] uppercase tracking-[0.18em] text-white/25">Threat</span>
+                    <div className="flex items-center justify-between pt-0.5 border-t border-white/5">
+                        <span className="font-mono text-[8px] uppercase tracking-[0.18em] text-white/30">Threat Rating</span>
                         <ThreatMeter level={file.threat} />
                     </div>
                 </div>
@@ -458,16 +462,14 @@ function DossierDragCard({
 }
 
 // ————————————————————————————————————————————————————————————
-// Scatter layout — width comes from each card's own codename, and row
-// height / vertical jitter are tuned to the shorter card height above so
-// the board packs tighter with fewer visible gaps.
+// Scatter layout
 // ————————————————————————————————————————————————————————————
 
 function generateScatterPositions(dossiers: Dossier[], randomize: boolean): React.CSSProperties[] {
     const cols = 4;
     const cellWidthPct = 100 / cols;
-    const rowHeightPx = 210; // tightened from 300 to match shorter cards
-    const boardWidthPx = 1024; // matches the board's max-w-5xl reference width
+    const rowHeightPx = 290;
+    const boardWidthPx = 1024;
 
     const seededRand = (seed: number) => {
         const x = Math.sin(seed * 999) * 10000;
@@ -487,9 +489,9 @@ function generateScatterPositions(dossiers: Dossier[], randomize: boolean): Reac
         const widthRem = codenameCardWidth(d.codename);
         const cardWidthPct = ((widthRem * 16) / boardWidthPx) * 100;
 
-        const leftJitter = (r1 - 0.5) * cellWidthPct * 0.7;
-        const topJitter = (r2 - 0.5) * 60; // tightened from 100
-        const rotateDeg = (r3 - 0.5) * 16;
+        const leftJitter = (r1 - 0.5) * (cellWidthPct - cardWidthPct * 0.3);
+        const topJitter = (r2 - 0.5) * 40;
+        const rotateDeg = (r3 - 0.5) * 10;
 
         const left = Math.max(0, Math.min(100 - cardWidthPct, baseLeft + leftJitter));
         const top = Math.max(0, baseTop + topJitter);
@@ -695,7 +697,7 @@ export default function DossiersPage() {
 
                     {/* Card board — defines the section height, sits ON TOP of the title */}
                     {filtered.length ? (
-                        <DraggableCardContainer className="relative z-10 mx-auto h-[560px] w-full max-w-5xl">
+                        <DraggableCardContainer className="relative z-10 mx-auto h-[640px] w-full max-w-5xl">
                             {filtered.map((f, i) => (
                                 <DossierDragCard
                                     key={f.id}
