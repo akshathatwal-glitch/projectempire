@@ -12,7 +12,7 @@ import {
   ArrowUpRight,
   ShieldAlert,
 } from "lucide-react";
-import { motion } from "motion/react";
+
 
 gsap.registerPlugin(ScrollTrigger);
 

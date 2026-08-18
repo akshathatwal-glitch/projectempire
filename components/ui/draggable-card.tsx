@@ -1,13 +1,11 @@
 "use client";
 import { cn } from "@/lib/utils";
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import {
     motion,
     useMotionValue,
     useSpring,
     useTransform,
-    animate,
-    useVelocity,
     useAnimationControls,
 } from "motion/react";
 
@@ -40,9 +38,6 @@ export const DraggableCardBody = ({
     useEffect(() => {
         boundaryRef.current = document.body;
     }, []);
-
-    const velocityX = useVelocity(mouseX);
-    const velocityY = useVelocity(mouseY);
 
     const springConfig = {
         stiffness: 100,

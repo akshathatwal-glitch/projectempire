@@ -117,7 +117,7 @@ export default function Home() {
         ref={containerRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative w-full h-screen flex items-start justify-center overflow-hidden bg-[#f41e16] bg-[url('/darth.png')] bg-cover bg-center bg-no-repeat"
+        className="relative w-full h-screen flex flex-col items-end justify-end overflow-hidden bg-[#f41e16] bg-[url('/darth.png')] bg-cover bg-center bg-no-repeat px-6 pb-16 sm:px-12 sm:pb-20 md:px-16 md:pb-24"
         id="home"
       >
         {/* Ambient Canvas Particles & Tactical Scanline Overlay (non-intrusive background additions) */}
@@ -164,7 +164,7 @@ export default function Home() {
 
         <h1
           ref={headingRef}
-          className="relative z-10 mt-32 text-4xl font-bold text-white sm:mt-40 [perspective:1000px] transform-gpu"
+          className="relative z-10 text-right text-white [perspective:1000px] transform-gpu "
           id="heading"
         >
           <span className="heading-word inline-block">Project</span>{" "}

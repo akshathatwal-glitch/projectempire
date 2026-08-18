@@ -28,9 +28,11 @@ type Threat = 1 | 2 | 3 | 4 | 5;
 export function PostBountyModal({
     open,
     onClose,
+    onSubmit,
 }: {
     open: boolean;
     onClose: () => void;
+    onSubmit?: (bounty: { target: string; alias: string; sector: string; threat: Threat; payout: number }) => void;
 }) {
     const [target, setTarget] = useState("");
     const [alias, setAlias] = useState("");
@@ -43,7 +45,11 @@ export function PostBountyModal({
         if (!target.trim()) return setError("TARGET DESIGNATION REQUIRED");
         if (!payout || Number(payout) <= 0) return setError("ENTER A VALID PAYOUT");
         setError(null);
-        // hand off to your real submit handler here
+        onSubmit?.({ target, alias, sector, threat, payout: Number(payout) });
+        setTarget("");
+        setAlias("");
+        setPayout("");
+        setThreat(3);
         onClose();
     };
 

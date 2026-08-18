@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, Menu, X, LayoutDashboard, ChevronRight, ShieldAlert, Radio, FileText, Target, Command } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 
 const NAV_LINKS = [
@@ -55,7 +56,7 @@ export default function Navbar() {
     if (searchOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
     } else {
-      setQuery("");
+      setTimeout(() => setQuery(""), 0);
     }
   }, [searchOpen]);
 
@@ -84,14 +85,14 @@ export default function Navbar() {
         "
       >
         {/* LEFT CLUSTER */}
-        <div className="z-10 flex items-center gap-3 sm:gap-4">
+        <div className="z-10 flex min-w-0 items-center gap-2 sm:gap-4">
           {/* Search Button */}
           <button
             type="button"
             aria-label="Toggle Search"
             onClick={() => setSearchOpen((prev) => !prev)}
             className={`
-              flex h-9 items-center gap-2 rounded-sm border px-2.5 text-xs font-mono tracking-wider transition cursor-pointer
+              flex h-9 shrink-0 items-center gap-2 rounded-sm border px-2 sm:px-2.5 text-xs font-mono tracking-wider transition cursor-pointer
               ${searchOpen
                 ? "border-red-500/60 bg-red-600/20 text-white shadow-[0_0_12px_rgba(255,59,48,0.4)]"
                 : "border-white/20 text-white/90 hover:bg-white/10 hover:text-white"
@@ -125,21 +126,28 @@ export default function Navbar() {
 
           {/* NAV LINKS */}
           <div
-            className={`flex items-center gap-1 overflow-hidden transition-all duration-300 ease-out ${menuOpen ? "max-w-[600px] opacity-100" : "max-w-0 opacity-0"
-              }`}
+            className={`
+              flex min-w-0 items-center gap-0.5 overflow-hidden whitespace-nowrap
+              transition-all duration-300 ease-out sm:gap-1
+              ${menuOpen
+                ? "max-w-[38vw] opacity-100 xs:max-w-[46vw] sm:max-w-[420px] md:max-w-[600px]"
+                : "max-w-0 opacity-0"
+              }
+            `}
           >
             {NAV_LINKS.map((link) => {
               const active = isActive(link.href);
               return (
-                <a
+                <Link
                   key={link.label}
                   href={link.href}
                   onClick={() => setMenuOpen(false)}
                   aria-current={active ? "page" : undefined}
                   className={`
-                    relative whitespace-nowrap rounded-sm
-                    px-3 py-2 text-sm font-semibold
+                    relative shrink-0 whitespace-nowrap rounded-sm
+                    px-1.5 py-1.5 text-[10px] font-semibold
                     uppercase tracking-wide transition-all duration-200 cursor-pointer
+                    sm:px-3 sm:py-2 sm:text-sm
                     ${active ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10 hover:text-white"}
                   `}
                 >
@@ -152,24 +160,24 @@ export default function Navbar() {
                       ${active ? "w-5 opacity-100 shadow-[0_0_8px_#ff3b30]" : "w-0 opacity-0"}
                     `}
                   />
-                </a>
+                </Link>
               );
             })}
           </div>
         </div>
 
         {/* CENTER WORDMARK — LOCKED */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <a
+        <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-20 sm:px-28">
+          <Link
             href="/"
-            className="pointer-events-auto select-none text-center leading-none"
+            className="pointer-events-auto select-none truncate text-center leading-none"
             aria-label="Empire home"
           >
             <span
               className="
-                block text-lg font-bold
-                tracking-widest text-white uppercase
-                sm:text-2xl
+                block truncate text-sm font-bold
+                tracking-wide text-white uppercase
+                xs:text-base sm:text-xl sm:tracking-widest md:text-2xl
               "
               style={{ fontFamily: "'Impact', sans-serif" }}
             >
@@ -183,7 +191,7 @@ export default function Navbar() {
                 </>
               )}
             </span>
-          </a>
+          </Link>
         </div>
 
         {/* RIGHT CLUSTER */}
@@ -191,11 +199,12 @@ export default function Navbar() {
           type="button"
           onClick={() => router.push("/console")}
           className="
-            z-10 flex items-center gap-2
+            z-10 flex shrink-0 items-center gap-2
             rounded-sm border border-white/25
-            px-3 py-2 text-sm font-semibold
+            px-2.5 py-2 text-sm font-semibold
             uppercase tracking-wide text-white
             transition hover:bg-white/10 cursor-pointer
+            sm:px-3
           "
         >
           <LayoutDashboard size={16} strokeWidth={2} />

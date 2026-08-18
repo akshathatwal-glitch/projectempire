@@ -1,37 +1,47 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Radio, ShieldAlert, Terminal, Lock, Pause, Play, Trash2, Filter } from "lucide-react";
-import { INTERCEPT_SEED, INTERCEPT_POOL, type InterceptLine } from "./console-data";
 
-function randomTimestamp() {
-  const s = Math.floor(Math.random() * 60);
-  return `03:114:${String(s).padStart(2, "0")}`;
+interface InterceptLine {
+  id: string;
+  timestamp: string;
+  text: string;
+  flagged?: boolean;
 }
 
 export function InterceptFeed() {
-  const [lines, setLines] = useState<InterceptLine[]>(INTERCEPT_SEED);
+  const [lines, setLines] = useState<InterceptLine[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // ── Fetch intercepts from API (also generates a new line each call) ──
+  const fetchIntercepts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/intel");
+      const data = await res.json();
+      setLines(data.lines ?? []);
+    } catch {
+      // keep existing state on error
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchIntercepts();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchIntercepts]);
+
+  // Poll every ~3s to simulate live stream (matches original interval)
   useEffect(() => {
     if (isPaused) return;
-
-    const id = setInterval(() => {
-      const text = INTERCEPT_POOL[Math.floor(Math.random() * INTERCEPT_POOL.length)];
-      const isFlagged = Math.random() > 0.55;
-      const entry: InterceptLine = {
-        id: `${Date.now()}-${Math.random()}`,
-        timestamp: randomTimestamp(),
-        text,
-        flagged: isFlagged,
-      };
-      setLines((prev) => [...prev.slice(-9), entry]);
-    }, 2800);
+    const id = setInterval(fetchIntercepts, 3000);
     return () => clearInterval(id);
-  }, [isPaused]);
+  }, [isPaused, fetchIntercepts]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -163,7 +173,7 @@ export function InterceptFeed() {
           <Lock size={9} className="text-red-500" />
           AES-512 ENCRYPTED RELAY
         </span>
-        <span>STREAM RATE: 3.2s</span>
+        <span>STREAM RATE: 3.0s</span>
       </div>
     </div>
   );
