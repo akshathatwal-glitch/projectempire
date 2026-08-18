@@ -1,8 +1,16 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { Crosshair, MapPin, Clock, ShieldAlert, Radio, Flame } from "lucide-react";
-import { ACTIVE_DEPLOYMENTS, type HunterDeployment } from "./console-data";
+import { Crosshair, MapPin, Clock, Flame } from "lucide-react";
+
+interface HunterDeployment {
+  id: string;
+  hunter: string;
+  location: string;
+  status: "STANDBY" | "EN ROUTE" | "ENGAGED" | "RETURNING";
+  eta: string;
+}
 
 const STATUS_CONFIG: Record<
   HunterDeployment["status"],
@@ -39,6 +47,15 @@ const STATUS_CONFIG: Record<
 };
 
 export function ActiveHuntsPanel() {
+  const [deployments, setDeployments] = useState<HunterDeployment[]>([]);
+
+  useEffect(() => {
+    fetch("/api/hunters")
+      .then((r) => r.json())
+      .then((d) => setDeployments(d.hunters ?? []))
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="relative overflow-hidden rounded-sm border border-red-600/30 bg-[#0a0a0c] p-5 shadow-[0_0_35px_rgba(216,15,15,0.2)] backdrop-blur-xl">
       {/* HUD Corner Brackets */}
@@ -60,13 +77,13 @@ export function ActiveHuntsPanel() {
           </span>
         </div>
         <span className="rounded bg-red-950/80 border border-red-500/40 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-red-400 shadow-[0_0_10px_rgba(255,59,48,0.3)]">
-          {ACTIVE_DEPLOYMENTS.length} DEPLOYED
+          {deployments.length} DEPLOYED
         </span>
       </div>
 
       {/* Hunter Cards List */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {ACTIVE_DEPLOYMENTS.map((d, index) => {
+        {deployments.map((d, index) => {
           const config = STATUS_CONFIG[d.status];
           return (
             <motion.div

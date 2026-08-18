@@ -339,16 +339,17 @@ function codenameFontSize(name: string) {
     return 'text-[19px] sm:text-[20px]';
 }
 
-function bgIcon(status: Status) {
+function renderBgIcon(status: Status, className: string, style?: React.CSSProperties) {
+    const props = { className, strokeWidth: 1, style };
     switch (status) {
         case 'ACTIVE':
-            return Crosshair;
+            return <Crosshair {...props} />;
         case 'CAPTURED':
-            return ShieldAlert;
+            return <ShieldAlert {...props} />;
         case 'TERMINATED':
-            return Skull;
+            return <Skull {...props} />;
         case 'UNCONFIRMED':
-            return Radiation;
+            return <Radiation {...props} />;
     }
 }
 
@@ -362,7 +363,6 @@ function DossierDragCard({
     onOpen: (f: Dossier) => void;
 }) {
     const c = statusColor(file.status);
-    const BgIcon = bgIcon(file.status);
 
     return (
         <DraggableCardBody
@@ -372,16 +372,16 @@ function DossierDragCard({
             <div className="absolute inset-0 flex flex-col justify-between">
                 {/* icon watermark — sits behind everything, drifts + brightens on hover/drag */}
                 <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-                    <BgIcon
-                        className="absolute -bottom-6 -right-6 h-28 w-28 text-[#d80f0f] opacity-[0.08] transition-all duration-300 ease-out group-hover:opacity-[0.18] group-hover:-rotate-6 group-active:opacity-[0.24]"
-                        strokeWidth={1}
-                        style={{ rotate: '-8deg' }}
-                    />
-                    <BgIcon
-                        className="absolute -left-4 -top-4 h-14 w-14 text-white opacity-[0.04] transition-all duration-300 ease-out group-hover:opacity-[0.09]"
-                        strokeWidth={1}
-                        style={{ rotate: '12deg' }}
-                    />
+                    {renderBgIcon(
+                        file.status,
+                        "absolute -bottom-6 -right-6 h-28 w-28 text-[#d80f0f] opacity-[0.08] transition-all duration-300 ease-out group-hover:opacity-[0.18] group-hover:-rotate-6 group-active:opacity-[0.24]",
+                        { rotate: '-8deg' }
+                    )}
+                    {renderBgIcon(
+                        file.status,
+                        "absolute -left-4 -top-4 h-14 w-14 text-white opacity-[0.04] transition-all duration-300 ease-out group-hover:opacity-[0.09]",
+                        { rotate: '12deg' }
+                    )}
                 </div>
 
                 {/* faint scanline texture over the whole card */}
@@ -906,25 +906,30 @@ function InfoBlock({ icon, label, value }: { icon: React.ReactNode; label: strin
 // ————————————————————————————————————————————————————————————
 
 export default function DossiersPage() {
+    const [dossiers, setDossiers] = useState<Dossier[]>(DOSSIERS);
     const [query, setQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL');
     const [sort, setSort] = useState<SortKey>('THREAT');
     const [active, setActive] = useState<Dossier | null>(null);
 
-    // Deterministic layout for the first (server-rendered) pass, then
-    // re-rolled with real randomness once mounted on the client below —
-    // so the board is scattered differently every time the page loads.
-    const [scatterPositions, setScatterPositions] = useState<React.CSSProperties[]>(() =>
-        generateScatterPositions(DOSSIERS, false),
-    );
-
     useEffect(() => {
-        setScatterPositions(generateScatterPositions(DOSSIERS, true));
+        fetch('/api/dossiers')
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.dossiers?.length) {
+                    setDossiers(data.dossiers);
+                }
+            })
+            .catch(() => {});
     }, []);
+
+    const [scatterPositions] = useState<React.CSSProperties[]>(() =>
+        generateScatterPositions(dossiers, true),
+    );
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return DOSSIERS.filter((f) => {
+        return dossiers.filter((f) => {
             const matchesQuery =
                 !q ||
                 f.codename.toLowerCase().includes(q) ||
@@ -934,9 +939,9 @@ export default function DossiersPage() {
             const matchesStatus = statusFilter === 'ALL' || f.status === statusFilter;
             return matchesQuery && matchesStatus;
         }).sort((a, b) => (sort === 'THREAT' ? b.threat - a.threat : a.id < b.id ? 1 : -1));
-    }, [query, statusFilter, sort]);
+    }, [dossiers, query, statusFilter, sort]);
 
-    const activeCount = DOSSIERS.filter((f) => f.status === 'ACTIVE').length;
+    const activeCount = dossiers.filter((f) => f.status === 'ACTIVE').length;
 
     return (
         <main className="min-h-screen bg-[#050505] text-white">

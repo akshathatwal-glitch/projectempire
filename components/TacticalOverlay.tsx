@@ -12,22 +12,11 @@ const SYSTEM_LOGS = [
 
 export default function TacticalOverlay() {
   const [logIndex, setLogIndex] = useState(0);
-  const [timeStr, setTimeStr] = useState("");
   const [ping, setPing] = useState(14);
   const [freq, setFreq] = useState(142.8);
-  const [waveBars, setWaveBars] = useState(
-    Array.from({ length: 14 }, () => Math.floor(Math.random() * 60 + 25))
-  );
-
-  useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      setTimeStr(now.toTimeString().split(" ")[0]);
-    };
-    updateClock();
-    const interval = setInterval(updateClock, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const [waveBars, setWaveBars] = useState<number[]>([
+    35, 45, 60, 40, 55, 70, 50, 65, 30, 45, 55, 40, 60, 50,
+  ]);
 
   useEffect(() => {
     const telemetryInterval = setInterval(() => {

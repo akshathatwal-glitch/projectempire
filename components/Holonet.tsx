@@ -1,17 +1,13 @@
 'use client'
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
     Radar,
     Crosshair,
     Search,
     Menu,
-    ShieldAlert,
     ChevronRight,
 } from "lucide-react";
-import { ScrollBasedVelocity } from "@/components/ui/scroll-based-velocity";
-import HunterCommendationsDemo from "@/components/hunter-commendations";
-import { ImperialSearch } from "@/components/imperial-search";
 
 /* ------------------------------------------------------------------ */
 /*  Static data                                                        */
@@ -112,6 +108,18 @@ export default function HolonetMap() {
     const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const radarRef = useRef<HTMLDivElement | null>(null);
 
+    useEffect(() => {
+        fetch("/api/sightings")
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.sightings?.length) {
+                    setSightings(data.sightings);
+                    setSelectedId(data.sightings[0]?.id ?? null);
+                }
+            })
+            .catch(() => {});
+    }, []);
+
     const sectorStats = useMemo(
         () =>
             RING_ORDER.map((ring) => {
@@ -167,22 +175,28 @@ export default function HolonetMap() {
                 scanIntervalRef.current = null;
                 setScanLines((prev) => [...prev.slice(-7), "SIGNAL ISOLATED."]);
 
-                setTimeout(() => {
+                setTimeout(async () => {
                     const pick = SCAN_POOL[Math.floor(Math.random() * SCAN_POOL.length)];
-                    const id = Math.random().toString(36).slice(2, 8);
-                    const entry = {
-                        ...pick,
-                        id,
-                        timestamp:
-                            new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) +
-                            " GCT",
-                    };
-                    setSightings((prev) => [entry, ...prev]);
-                    setScanning(false);
-                    setScanLines([]);
-                    setHighlightId(id);
-                    setSelectedId(id);
-                    setTimeout(() => setHighlightId(null), 2200);
+                    try {
+                        const res = await fetch("/api/sightings", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(pick),
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.sighting) {
+                            const newEntry = data.sighting;
+                            setSightings((prev) => [newEntry, ...prev]);
+                            setHighlightId(newEntry.id);
+                            setSelectedId(newEntry.id);
+                        }
+                    } catch {
+                        // fallback
+                    } finally {
+                        setScanning(false);
+                        setScanLines([]);
+                        setTimeout(() => setHighlightId(null), 2200);
+                    }
                 }, 260);
             }
         }, TICK_MS);

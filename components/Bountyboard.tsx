@@ -5,27 +5,16 @@ import { ImperialSearch } from "@/components/imperial-search"
 import { BountyGrid } from "@/components/BountyGrid"
 import { PostBountyModal } from "@/components/postbounty"
 
-import { motion, AnimatePresence, LayoutGroup } from "motion/react";
-import { useState, useRef, type MouseEvent } from "react";
+import { LayoutGroup } from "motion/react";
+import { useState, useEffect } from "react";
 import {
-    Trophy,
-    Search,
     Menu,
-    Crosshair,
-    MapPin,
-    Coins,
-    Lock,
     Plus,
-    X,
-    Terminal,
-    ChevronRight,
-    Send,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/*  Static data                                                        */
+/*  Types                                                              */
 /* ------------------------------------------------------------------ */
-
 const SECTORS = [
     "OUTER RIM",
     "CORE WORLDS",
@@ -48,127 +37,90 @@ interface Bounty {
     status: Status;
 }
 
-const INITIAL_BOUNTIES: Bounty[] = [
-    { id: "bt1", target: "Unidentified Jedi", alias: '"The Wanderer"', sector: "OUTER RIM", threat: 5, payout: 240000, lastSeen: "Tatooine, 3 days ago", status: "ACTIVE" },
-    { id: "bt2", target: "Former Padawan", alias: '"Ashvale"', sector: "MID RIM", threat: 3, payout: 85000, lastSeen: "Bespin, 6 hours ago", status: "ACTIVE" },
-    { id: "bt3", target: "Rogue Consular", alias: '"Grey Veil"', sector: "CORE WORLDS", threat: 4, payout: 160000, lastSeen: "Corellia, 1 day ago", status: "ACTIVE" },
-    { id: "bt4", target: "Suspected Sympathizer", alias: '"Quiet Hand"', sector: "COLONIES", threat: 2, payout: 42000, lastSeen: "Muunilinst, 2 days ago", status: "ACTIVE" },
-    { id: "bt5", target: "Exiled Knight", alias: '"Cinder"', sector: "UNKNOWN REGIONS", threat: 5, payout: 310000, lastSeen: "Signal lost, 9 days ago", status: "ACTIVE" },
-    { id: "bt6", target: "Smuggler Contact", alias: '"Half-Light"', sector: "WILD SPACE", threat: 1, payout: 18000, lastSeen: "Nal Hutta, 4 hours ago", status: "CLAIMED" },
-];
-
-const THREAT_COLOR: Record<number, string> = {
-    1: "#8a8a8a",
-    2: "#ffb020",
-    3: "#ffb020",
-    4: "#ff3b30",
-    5: "#ff3b30",
-};
-
 type SortKey = "PAYOUT" | "THREAT";
-
-/* ------------------------------------------------------------------ */
-/*  3D tilt card wrapper                                               */
-/* ------------------------------------------------------------------ */
-
-function TiltCard({ children }: { children: React.ReactNode }) {
-    const ref = useRef<HTMLDivElement>(null);
-    const [style, setStyle] = useState<React.CSSProperties>({});
-
-    function handleMove(e: MouseEvent<HTMLDivElement>) {
-        const el = ref.current;
-        if (!el) return;
-        const rect = el.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / rect.width - 0.5;
-        const y = (e.clientY - rect.top) / rect.height - 0.5;
-        setStyle({
-            transform: `perspective(900px) rotateX(${(-y * 10).toFixed(2)}deg) rotateY(${(x * 12).toFixed(2)}deg) translateZ(0)`,
-        });
-    }
-
-    function handleLeave() {
-        setStyle({
-            transform: "perspective(900px) rotateX(0deg) rotateY(0deg) translateZ(0)",
-        });
-    }
-
-    return (
-        <div
-            ref={ref}
-            onMouseMove={handleMove}
-            onMouseLeave={handleLeave}
-            style={{ ...style, transition: "transform 0.35s cubic-bezier(0.22,1,0.36,1)" }}
-            className="[transform-style:preserve-3d]"
-        >
-            {children}
-        </div>
-    );
-}
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
 export default function BountyBoard() {
-    const [bounties, setBounties] = useState<Bounty[]>(INITIAL_BOUNTIES);
+    const [bounties, setBounties] = useState<Bounty[]>([]);
+    const [loading, setLoading] = useState(true);
     const [sectorFilter, setSectorFilter] = useState<string>("ALL");
     const [sort, setSort] = useState<SortKey>("PAYOUT");
     const [postOpen, setPostOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [menuOpen, setMenuOpen] = useState(false);
 
-    // post-bounty form state
-    const [target, setTarget] = useState("");
-    const [alias, setAlias] = useState("");
-    const [sector, setSector] = useState(SECTORS[0]);
-    const [threat, setThreat] = useState<1 | 2 | 3 | 4 | 5>(3);
-    const [payout, setPayout] = useState("");
-    const [error, setError] = useState<string | null>(null);
-
-    function claim(id: string) {
-        setBounties((prev) =>
-            prev.map((b) => (b.id === id ? { ...b, status: "CLAIMED" } : b))
-        );
+    // ── Fetch bounties from API ──────────────────────────────────────
+    async function fetchBounties() {
+        try {
+            const params = new URLSearchParams();
+            if (sectorFilter !== "ALL") params.set("sector", sectorFilter);
+            params.set("sort", sort);
+            if (searchQuery.trim()) params.set("q", searchQuery.trim());
+            const res = await fetch(`/api/bounties?${params.toString()}`);
+            const data = await res.json();
+            setBounties(data.bounties ?? []);
+        } catch {
+            // keep existing state if network fails
+        } finally {
+            setLoading(false);
+        }
     }
 
-    function submitBounty() {
-        if (!target.trim()) {
-            setError("TARGET DESIGNATION REQUIRED");
-            return;
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchBounties();
+        }, 0);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sectorFilter, sort, searchQuery]);
+
+    // ── Claim a bounty via PATCH ────────────────────────────────────
+    async function claim(id: string) {
+        // Optimistic UI
+        setBounties((prev) =>
+            prev.map((b) => (b.id === id ? { ...b, status: "CLAIMED" as Status } : b))
+        );
+        try {
+            await fetch(`/api/bounties/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: "CLAIMED" }),
+            });
+        } catch {
+            // revert on failure
+            setBounties((prev) =>
+                prev.map((b) => (b.id === id ? { ...b, status: "ACTIVE" as Status } : b))
+            );
         }
-        if (!payout || Number(payout) <= 0) {
-            setError("VALID PAYOUT REQUIRED");
-            return;
+    }
+
+    // ── Submit a new bounty via POST ────────────────────────────────
+    async function handleCreateBounty(newBounty: {
+        target: string;
+        alias: string;
+        sector: string;
+        threat: 1 | 2 | 3 | 4 | 5;
+        payout: number;
+    }) {
+        try {
+            const res = await fetch("/api/bounties", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newBounty),
+            });
+            const data = await res.json();
+            if (res.ok && data.bounty) {
+                setBounties((prev) => [data.bounty, ...prev]);
+            }
+        } catch {
+            // error handling
         }
-        setError(null);
-        const entry: Bounty = {
-            id: Math.random().toString(36).slice(2, 8),
-            target: target.trim(),
-            alias: alias.trim() ? `"${alias.trim()}"` : "Unlisted",
-            sector,
-            threat,
-            payout: Number(payout),
-            lastSeen: "Position unconfirmed",
-            status: "ACTIVE",
-        };
-        setBounties((prev) => [entry, ...prev]);
-        setPostOpen(false);
-        setTarget("");
-        setAlias("");
-        setPayout("");
-        setThreat(3);
     }
 
     const activeCount = bounties.filter((b) => b.status === "ACTIVE").length;
-
-    const filtered = bounties
-        .filter((b) => sectorFilter === "ALL" || b.sector === sectorFilter)
-        .filter(
-            (b) =>
-                b.target.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                b.alias.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                b.sector.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-        .sort((a, b) => (sort === "PAYOUT" ? b.payout - a.payout : b.threat - a.threat));
 
     return (
         <section className="w-full bg-[#050505] text-white">
@@ -200,151 +152,124 @@ export default function BountyBoard() {
         }
       `}</style>
 
-            {/* ---------------- Header band ---------------- */}
-            <div className="relative overflow-hidden px-6 pt-16 pb-14 sm:px-10">
-                <div className="pointer-events-none absolute inset-0 opacity-60 [background:radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(216,15,15,0.25),transparent_70%)]" />
+            {/* ── Hero Band ───────────────────────────────────────────── */}
+            <div className="relative flex min-h-[56px] w-full items-center border-b border-white/10 bg-black px-5 sm:px-8">
+                <span className="absolute left-0 top-0 h-[2px] w-full bg-gradient-to-r from-transparent via-[#d80f0f] to-transparent opacity-90" />
 
+                {/* left: hamburger + label */}
+                <div className="flex items-center gap-3 min-w-0">
+                    <button
+                        type="button"
+                        aria-label={menuOpen ? "Close filters" : "Open filters"}
+                        aria-expanded={menuOpen}
+                        onClick={() => setMenuOpen((p) => !p)}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-white/15 text-white/70 transition hover:bg-white/10 hover:text-white cursor-pointer"
+                    >
+                        <Menu size={16} />
+                    </button>
 
-                <div className="relative mx-auto mt-10 flex max-w-6xl flex-col items-center text-center">
-                    {/* <Trophy size={30} strokeWidth={1.3} className="mb-5 text-[#ff3b30]" /> */}
-                    <h1 className="font-imperial text-[44px] leading-none tracking-wide sm:text-[64px]">
-                        BOUNTY BOARD
-                    </h1>
-                    <p className="mt-4 max-w-lg text-sm tracking-[0.15em] text-white/50">
-                        ACTIVE CONTRACTS RANKED BY PAYOUT — CLAIM A HUNT BEFORE ANOTHER PARTY GETS THERE FIRST
-                    </p>
+                    <div
+                        className={`overflow-hidden transition-all duration-300 ease-out ${menuOpen ? "max-w-[70vw] opacity-100 sm:max-w-[480px]" : "max-w-0 opacity-0"
+                            } flex min-w-0 items-center gap-1 whitespace-nowrap`}
+                    >
+                        {/* Sector filter pills */}
+                        {["ALL", ...SECTORS].map((s) => (
+                            <button
+                                key={s}
+                                type="button"
+                                onClick={() => setSectorFilter(s)}
+                                className={`shrink-0 rounded-sm border px-2.5 py-1 font-mono text-[9px] font-bold tracking-wider uppercase transition cursor-pointer ${sectorFilter === s
+                                        ? "border-[#d80f0f]/70 bg-[#d80f0f]/20 text-white shadow-[0_0_10px_rgba(216,15,15,0.3)]"
+                                        : "border-white/10 text-white/40 hover:text-white"
+                                    }`}
+                            >
+                                {s}
+                            </button>
+                        ))}
+
+                        <span className="mx-1 h-4 w-px shrink-0 bg-white/20" />
+
+                        {/* Sort toggles */}
+                        {(["PAYOUT", "THREAT"] as SortKey[]).map((k) => (
+                            <button
+                                key={k}
+                                type="button"
+                                onClick={() => setSort(k)}
+                                className={`shrink-0 rounded-sm border px-2 py-1 font-mono text-[9px] font-bold tracking-wider uppercase transition cursor-pointer ${sort === k
+                                        ? "border-white/50 bg-white/10 text-white"
+                                        : "border-white/10 text-white/40 hover:text-white"
+                                    }`}
+                            >
+                                {k}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </div>
 
-            <HunterCommendationsDemo />
+                {/* center wordmark */}
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-28">
+                    <span className="font-imperial select-none truncate text-xl uppercase tracking-[0.18em] text-white sm:text-2xl">
+                        BOUNTY&nbsp;<span className="text-[#d80f0f]">BOARD</span>
+                    </span>
+                </div>
 
-            {/* ---------------- Red console panel ---------------- */}
-            <div className="mx-auto max-w-6xl px-6 pb-10 pt-12 sm:px-10 sm:pt-20">
-                <div className="relative overflow-hidden rounded-sm border border-white/15 bg-[#b5130e] [background-image:radial-gradient(ellipse_90%_70%_at_25%_0%,rgba(255,255,255,0.14),transparent_60%)]">
-                    <div className="flex items-center justify-between border-b border-white/15 px-6 py-4">
-                        <div className="flex items-center gap-4">
-                            <ImperialSearch value={searchQuery} onValueChange={setSearchQuery} />
-                            <Menu size={16} className="text-white/70" />
-                        </div>
-                        <span className="font-imperial text-lg tracking-wide">BOUNTY NET</span>
-                        <span className="flex items-center gap-2 font-mono text-[11px] tracking-[0.15em] text-white/85">
-                            <span className="relative flex h-2 w-2">
-                                <span className="absolute inline-flex h-full w-full rounded-full bg-white bb-ring" />
-                                <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
-                            </span>
-                            {activeCount} ACTIVE
+                {/* right: status + post button */}
+                <div className="ml-auto flex shrink-0 items-center gap-3">
+                    <div className="hidden items-center gap-1.5 sm:flex">
+                        <span className="relative flex h-2 w-2">
+                            <span className="bb-ring absolute inline-flex h-full w-full rounded-full bg-[#d80f0f] opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#d80f0f]" />
+                        </span>
+                        <span className="font-mono text-[10px] tracking-[0.14em] text-white/60 uppercase">
+                            {loading ? "LOADING..." : `${activeCount} ACTIVE`}
                         </span>
                     </div>
-
-                    <div className="grid grid-cols-1 gap-8 px-6 py-10 sm:px-10 md:grid-cols-[auto_1fr]">
-                        <div className="hidden items-center justify-center md:flex">
-                            <span className="font-imperial -rotate-90 whitespace-nowrap text-xs tracking-[0.4em] text-white/70">
-                                GALAXY-WIDE CONTRACTS
-                            </span>
-                        </div>
-
-                        <div>
-                            <div className="mb-6 min-h-[20px] font-mono text-[11px] tracking-[0.1em] text-white/70">
-                                Scanning open contracts... Sorting by payout...
-                            </div>
-
-                            <h2 className="font-imperial text-[36px] leading-[0.95] sm:text-[52px]">
-                                THE HUNT <span className="text-white/60">PAYS</span>
-                                <br />
-                                WELL
-                            </h2>
-
-                            <p className="mt-5 max-w-md text-sm leading-relaxed text-white/85">
-                                Filter contracts by sector, sort by payout or threat rating,
-                                and claim before a rival bounty hunter beats you to it.
-                            </p>
-                        </div>
-                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setPostOpen(true)}
+                        className="flex items-center gap-1.5 rounded-sm border border-[#d80f0f]/60 bg-[#d80f0f]/15 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white transition hover:bg-[#d80f0f]/30 hover:shadow-[0_0_14px_rgba(216,15,15,0.4)] cursor-pointer"
+                    >
+                        <Plus size={12} />
+                        POST
+                    </button>
                 </div>
             </div>
 
-            {/* ---------------- Filters / sort ---------------- */}
-            <div className="mx-auto max-w-6xl px-6 pb-8 sm:px-10">
-                <div className="flex flex-col gap-6 border-b border-white/10 pb-8 sm:flex-row sm:items-center sm:justify-between">
-                    {/* sector chips */}
-                    <div className="flex flex-wrap gap-2">
-                        {["ALL", ...SECTORS].map((s) => {
-                            const active = sectorFilter === s;
-                            return (
-                                <button
-                                    key={s}
-                                    type="button"
-                                    onClick={() => setSectorFilter(s)}
-                                    className={`group relative overflow-hidden rounded-sm border px-3.5 py-1.5 font-mono text-[11px] tracking-[0.08em] transition-all duration-300 ${active
-                                        ? "border-[#d80f0f] bg-[#d80f0f] text-white"
-                                        : "border-white/12 text-white/50 hover:-translate-y-0.5 hover:border-[#d80f0f]/50 hover:text-white"
-                                        }`}
-                                    style={{
-                                        boxShadow: active
-                                            ? "0 0 20px -4px rgba(216,15,15,0.7), inset 0 0 0 1px rgba(255,255,255,0.15)"
-                                            : "none",
-                                    }}
-                                >
-                                    <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full" />
-                                    {active && (
-                                        <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-white shadow-[0_0_6px_2px_rgba(255,255,255,0.8)]" />
-                                    )}
-                                    <span className="relative">
-                                        {s === "ALL" ? "ALL SECTORS" : s}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
+            {/* ── Search ──────────────────────────────────────────────── */}
+            <div className="border-b border-white/8 bg-[#050505] px-5 py-3 sm:px-8">
+                <ImperialSearch
+                    value={searchQuery}
+                    onValueChange={setSearchQuery}
+                    placeholder="SEARCH TARGET, ALIAS, SECTOR..."
+                />
+            </div>
 
-                    {/* sort: sliding-pill segmented control */}
-                    <div className="flex items-center gap-3">
-                        <span className="font-mono text-[10px] tracking-[0.2em] text-white/30">
-                            SORT
-                        </span>
-                        <LayoutGroup id="sort-control">
-                            <div className="relative flex rounded-sm border border-white/12 bg-[#0a0a0a] p-1">
-                                {(["PAYOUT", "THREAT"] as SortKey[]).map((k) => {
-                                    const active = sort === k;
-                                    return (
-                                        <button
-                                            key={k}
-                                            type="button"
-                                            onClick={() => setSort(k)}
-                                            className="relative z-10 rounded-[3px] px-4 py-1.5 font-mono text-[11px] tracking-[0.1em] transition-colors duration-300"
-                                            style={{
-                                                color: active ? "#050505" : "rgba(255,255,255,0.45)",
-                                            }}
-                                        >
-                                            {active && (
-                                                <motion.span
-                                                    layoutId="sort-pill"
-                                                    className="absolute inset-0 -z-10 rounded-[3px] bg-white"
-                                                    style={{
-                                                        boxShadow: "0 0 18px -2px rgba(255,255,255,0.6)",
-                                                    }}
-                                                    transition={{
-                                                        type: "spring",
-                                                        stiffness: 500,
-                                                        damping: 35,
-                                                    }}
-                                                />
-                                            )}
-                                            {k}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </LayoutGroup>
-                    </div>
+            {/* ── Grid ────────────────────────────────────────────────── */}
+            <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+                <LayoutGroup>
+                    {loading ? (
+                        <div className="flex items-center justify-center py-24 font-mono text-xs tracking-widest text-white/30 uppercase">
+                            LOADING BOUNTIES...
+                        </div>
+                    ) : (
+                        <BountyGrid bounties={bounties} onClaim={claim} />
+                    )}
+                </LayoutGroup>
+            </div>
+
+            {/* ── Hunter Commendations ────────────────────────────────── */}
+            <div className="border-t border-white/10">
+                <div className="mx-auto max-w-6xl px-5 pb-20 sm:px-10">
+                    <HunterCommendationsDemo />
                 </div>
             </div>
 
-            {/* ---------------- Bounty grid ---------------- */}
-            <BountyGrid bounties={filtered} onClaim={claim} onPostBounty={() => setPostOpen(true)} />
-
-            {/* ---------------- Post bounty modal ---------------- */}
-            {postOpen && <PostBountyModal open={postOpen} onClose={() => setPostOpen(false)} />}
+            {/* ── Post Bounty Modal ───────────────────────────────────── */}
+            <PostBountyModal
+                open={postOpen}
+                onClose={() => setPostOpen(false)}
+                onSubmit={handleCreateBounty}
+            />
         </section>
     );
 }

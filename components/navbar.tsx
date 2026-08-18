@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, Menu, X, LayoutDashboard, ChevronRight, ShieldAlert, Radio, FileText, Target, Command } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 
 const NAV_LINKS = [
@@ -55,7 +56,7 @@ export default function Navbar() {
     if (searchOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
     } else {
-      setQuery("");
+      setTimeout(() => setQuery(""), 0);
     }
   }, [searchOpen]);
 
@@ -137,7 +138,7 @@ export default function Navbar() {
             {NAV_LINKS.map((link) => {
               const active = isActive(link.href);
               return (
-                <a
+                <Link
                   key={link.label}
                   href={link.href}
                   onClick={() => setMenuOpen(false)}
@@ -159,7 +160,7 @@ export default function Navbar() {
                       ${active ? "w-5 opacity-100 shadow-[0_0_8px_#ff3b30]" : "w-0 opacity-0"}
                     `}
                   />
-                </a>
+                </Link>
               );
             })}
           </div>
@@ -167,7 +168,7 @@ export default function Navbar() {
 
         {/* CENTER WORDMARK — LOCKED */}
         <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-20 sm:px-28">
-          <a
+          <Link
             href="/"
             className="pointer-events-auto select-none truncate text-center leading-none"
             aria-label="Empire home"
@@ -190,7 +191,7 @@ export default function Navbar() {
                 </>
               )}
             </span>
-          </a>
+          </Link>
         </div>
 
         {/* RIGHT CLUSTER */}

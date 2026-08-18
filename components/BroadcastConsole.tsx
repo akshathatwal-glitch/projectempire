@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
     Radio,
     Send,
@@ -9,7 +9,6 @@ import {
     Menu,
     ChevronRight,
     Loader2,
-    CheckCircle2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ScrollBasedVelocity } from "@/components/ui/scroll-based-velocity";
@@ -56,32 +55,7 @@ interface BroadcastEntry {
     timestamp: string;
 }
 
-const INITIAL_LOG: BroadcastEntry[] = [
-    {
-        id: "tx-881",
-        message: "ORDER 66 ENFORCEMENT DIRECTIVE: All sectors report status on target suppression.",
-        sectors: ["OUTER RIM", "MID RIM"],
-        priority: "OMEGA",
-        status: "SENT",
-        timestamp: "04:12 GCT",
-    },
-    {
-        id: "tx-874",
-        message: "SYNDICATE RECRUITMENT WARNING: Intercepted transmissions indicate cell movement in Coruscant lower levels.",
-        sectors: ["CORE WORLDS"],
-        priority: "URGENT",
-        status: "SENT",
-        timestamp: "02:44 GCT",
-    },
-    {
-        id: "tx-860",
-        message: "ROUTINE PATROL COMMUNIQUE: Standard orbital scans completed for Expansion Region.",
-        sectors: ["EXPANSION REGION"],
-        priority: "STANDARD",
-        status: "SENT",
-        timestamp: "22:15 GCT",
-    },
-];
+// Broadcast log is now served from GET /api/broadcasts
 
 const UPLINK_STEPS = [
     "ENCRYPTING PAYLOAD (AES-512)...",
@@ -98,10 +72,30 @@ export default function BroadcastConsole() {
     const [priority, setPriority] = useState<Priority>("STANDARD");
     const [transmitting, setTransmitting] = useState(false);
     const [logLines, setLogLines] = useState<string[]>([]);
-    const [log, setLog] = useState<BroadcastEntry[]>(INITIAL_LOG);
+    const [log, setLog] = useState<BroadcastEntry[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [highlightId, setHighlightId] = useState<string | null>(null);
     const logEndRef = useRef<HTMLDivElement>(null);
+
+    // ── Fetch log from API ───────────────────────────────────────────
+    const fetchLog = useCallback(async (q?: string) => {
+        try {
+            const params = new URLSearchParams();
+            if (q?.trim()) params.set("q", q.trim());
+            const res = await fetch(`/api/broadcasts?${params.toString()}`);
+            const data = await res.json();
+            setLog(data.broadcasts ?? []);
+        } catch {
+            // keep existing state on error
+        }
+    }, []);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchLog(searchQuery);
+        }, 0);
+        return () => clearTimeout(timer);
+    }, [searchQuery, fetchLog]);
 
     useEffect(() => {
         logEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -127,7 +121,7 @@ export default function BroadcastConsole() {
         setError(null);
     }
 
-    function handleTransmit() {
+    async function handleTransmit() {
         if (!message.trim()) {
             setError("MESSAGE PAYLOAD REQUIRED");
             return;
@@ -140,41 +134,44 @@ export default function BroadcastConsole() {
         setTransmitting(true);
         setLogLines([]);
 
-        UPLINK_STEPS.forEach((line, i) => {
-            setTimeout(() => {
-                setLogLines((prev) => [...prev, line]);
-                if (i === UPLINK_STEPS.length - 1) {
-                    setTimeout(() => {
-                        const id = Math.random().toString(36).slice(2, 8);
-                        const entry: BroadcastEntry = {
-                            id,
-                            message: message.trim(),
-                            sectors: selectedSectors,
-                            priority,
-                            status: "SENT",
-                            timestamp:
-                                new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + " GCT",
-                        };
-                        setLog((prev) => [entry, ...prev]);
-                        setTransmitting(false);
-                        setMessage("");
-                        setLogLines([]);
-                        setComposeOpen(false);
-                        setHighlightId(id);
-                        setTimeout(() => setHighlightId(null), 2200);
-                    }, 500);
-                }
-            }, i * 550);
-        });
+        // Cinematic uplink animation steps
+        for (let i = 0; i < UPLINK_STEPS.length; i++) {
+            await new Promise<void>((resolve) => setTimeout(resolve, i === 0 ? 0 : 550));
+            setLogLines((prev) => [...prev, UPLINK_STEPS[i]]);
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 500));
+
+        try {
+            const res = await fetch("/api/broadcasts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: message.trim(),
+                    sectors: selectedSectors,
+                    priority,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setError(data.error ?? "TRANSMISSION FAILED");
+            } else {
+                const newEntry: BroadcastEntry = data.broadcast;
+                setLog((prev) => [newEntry, ...prev]);
+                setMessage("");
+                setComposeOpen(false);
+                setHighlightId(newEntry.id);
+                setTimeout(() => setHighlightId(null), 2200);
+            }
+        } catch {
+            setError("NETWORK ERROR — RETRANSMIT");
+        } finally {
+            setTransmitting(false);
+            setLogLines([]);
+        }
     }
 
-    const filteredLog = searchQuery.trim()
-        ? log.filter(
-            (e) =>
-                e.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                e.sectors.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()))
-        )
-        : log;
+    // Log is already filtered server-side via search query
+    const filteredLog = log;
 
     return (
         <section className="w-full bg-[#050505] text-white min-h-screen">

@@ -1,10 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { SECTOR_ACTIVITY, type SectorActivity } from "./console-data";
+import { useEffect, useState } from "react";
+import type { SectorActivity } from "./console-data";
 
 export function SectorMap({ onSelect }: { onSelect?: (sector: SectorActivity) => void }) {
+  const [sectors, setSectors] = useState<SectorActivity[]>([]);
   const [active, setActive] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/sectors")
+      .then((r) => r.json())
+      .then((data) => {
+        setSectors(data.sectors ?? []);
+      })
+      .catch(() => {});
+  }, []);
+
+  const totalSightings = sectors.reduce((sum, s) => sum + s.sightings, 0);
 
   return (
     <div className="rounded-sm border border-white/10 bg-[#0f0f0f] p-4">
@@ -13,12 +25,12 @@ export function SectorMap({ onSelect }: { onSelect?: (sector: SectorActivity) =>
           SECTOR ACTIVITY — GALAXY-WIDE
         </span>
         <span className="font-mono text-[10px] tracking-[0.1em] text-white/30">
-          {SECTOR_ACTIVITY.reduce((sum, s) => sum + s.sightings, 0)} TOTAL SIGHTINGS
+          {totalSightings} TOTAL SIGHTINGS
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {SECTOR_ACTIVITY.map((sector) => {
+        {sectors.map((sector) => {
           const isHot = sector.intensity > 0.7;
           return (
             <button
