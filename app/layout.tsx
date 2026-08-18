@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EMPIRE",
+  title: "Empire",
   description: "Project: EMPIRE STATE OF MIND",
 };
 

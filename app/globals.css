@@ -31,17 +31,24 @@
   font-weight: bold;
   font-size: 6rem;
   width: 45rem;
-  margin-top: 20rem;
-  margin-left: 35rem;
+  margin-top: 40rem;
+  margin-left: 65rem;
   text-align: right;
   text-transform: uppercase;
+  filter: blur(1px);
+  opacity: 0.9;
 }
 
 .text-spec {
-  
   color: transparent;
   -webkit-text-stroke: 2px white;
- 
+  transition: all 0.3s ease;
+}
+
+.text-spec:hover {
+  color: #ff3b30;
+  -webkit-text-stroke: 2px #ff3b30;
+  text-shadow: 0 0 20px rgba(255, 59, 48, 0.8);
 }
 
 #subheading {
@@ -57,4 +64,25 @@
   top: 15rem;
   left: 10rem;
   line-height: 0.9;
+  filter: blur(1px);
+  opacity: 0.9;
+}
+
+/* Added Ambient Animations (does not affect text positioning) */
+@keyframes laser-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-laser-sweep {
+  animation: laser-sweep 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(255, 59, 48, 0.4)); }
+  50% { filter: drop-shadow(0 0 25px rgba(255, 59, 48, 0.8)); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
 }
